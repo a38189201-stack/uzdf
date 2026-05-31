@@ -1,216 +1,334 @@
 import 'package:flutter/material.dart';
-import 'blog_screen.dart'; // Обязательно должен быть этот импорт
+import 'app_state.dart';
+import 'api_service.dart';
+import 'course_detail_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- 1. ШАПКА: Аватарка и Профиль ---
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 25,
-                      backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
-                    ),
-                    const SizedBox(width: 15),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          "С возвращением,",
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                        Text(
-                          "Пилот DJI",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                IconButton(
-                  icon: const Icon(Icons.notifications_none, size: 28),
-                  onPressed: () {},
-                )
-              ],
-            ),
-            const SizedBox(height: 30),
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
-            // --- 2. ГЛАВНАЯ НОВОСТЬ (БЛОГ) ---
-            const Text(
-              "Актуальные новости",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+class _HomeScreenState extends State<HomeScreen> {
+  late Future<List<dynamic>> _coursesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _coursesFuture = ApiService.fetchCourses();
+  }
+
+  void _refreshCourses() {
+    setState(() {
+      _coursesFuture = ApiService.fetchCourses();
+    });
+  }
+
+  /// Find the current active course (in_progress or last started)
+  Map<String, dynamic>? _findActiveCourse(List<dynamic> courses) {
+    // First: find a course with in_progress steps
+    for (final c in courses) {
+      if (c['isLocked'] == true) continue;
+      final steps = c['steps'] as List<dynamic>? ?? [];
+      final hasInProgress = steps.any((s) => s['userProgress']?['status'] == 'in_progress');
+      final hasCompleted = steps.any((s) => s['userProgress']?['status'] == 'completed');
+      if (hasInProgress || hasCompleted) return c as Map<String, dynamic>;
+    }
+    // Fallback: first unlocked course
+    for (final c in courses) {
+      if (c['isLocked'] != true) return c as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  /// True if user has any progress in a course
+  bool _hasProgress(Map<String, dynamic> course) {
+    final steps = course['steps'] as List<dynamic>? ?? [];
+    return steps.any((s) {
+      final status = s['userProgress']?['status'];
+      return status == 'in_progress' || status == 'completed';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: AppState().currentLanguage,
+      builder: (context, lang, child) {
+        final state = AppState();
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              state.translate('courses_title'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
             ),
-            const SizedBox(height: 15),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.blueAccent,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blueAccent.withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshCourses,
+              )
+            ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: () async => _refreshCourses(),
+            child: FutureBuilder<List<dynamic>>(
+              future: _coursesFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
                     children: [
-                      const Icon(Icons.campaign, color: Colors.white),
-                      const SizedBox(width: 10),
-                      const Expanded(
+                      _buildPromoBanner(state, null, isDark),
+                      const SizedBox(height: 32),
+                      Text(
+                        state.translate('courses_all'),
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 32),
+                      const Center(
                         child: Text(
-                          "Новые правила полетов в Ташкенте",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          'Нет доступных курсов',
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "С 1 июня обновлены зоны запрета полетов. Узнайте, где теперь разрешено летать без уведомления...",
-                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
-                  ),
-                  const SizedBox(height: 15),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.blueAccent,
-                      ),
-                      onPressed: () {
-                        // Переход на страницу деталей новости
+                  );
+                }
+
+                final courses = snapshot.data!;
+                final activeCourse = _findActiveCourse(courses);
+                final bannerCourse = activeCourse ?? (courses.isNotEmpty ? courses.first as Map<String, dynamic> : null);
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: courses.length + 2, // 1 banner + 1 title + courses list
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return _buildPromoBanner(state, bannerCourse, isDark, activeCourse: activeCourse, courses: courses);
+                    }
+                    if (index == 1) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 24, bottom: 16),
+                        child: Text(
+                          state.translate('courses_all'),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      );
+                    }
+                    
+                    final course = courses[index - 2] as Map<String, dynamic>;
+                    final isLocked = course['isLocked'] == true;
+                    final steps = course['steps'] as List<dynamic>? ?? [];
+                    final stepsCount = steps.length;
+                    final completedCount = steps.where((s) => s['userProgress']?['status'] == 'completed').length;
+                    final progress = stepsCount > 0 ? completedCount / stepsCount : 0.0;
+                    
+                    String statusLabel;
+                    if (isLocked) {
+                      statusLabel = '🔒 Заблокировано';
+                    } else if (completedCount == stepsCount && stepsCount > 0) {
+                      statusLabel = '✅ Завершено';
+                    } else if (completedCount > 0) {
+                      statusLabel = '$completedCount/$stepsCount шагов';
+                    } else {
+                      statusLabel = stepsCount > 0 ? 'Шагов: $stepsCount' : 'Без шагов';
+                    }
+                    
+                    return GestureDetector(
+                      onTap: () {
+                        if (isLocked) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Этот курс заблокирован. Пройдите предыдущие курсы по порядку!'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                          return;
+                        }
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const BlogDetailScreen(index: 0),
+                            builder: (_) => CourseDetailScreen(course: course),
                           ),
-                        );
+                        ).then((_) => _refreshCourses());
                       },
-                      child: const Text("Читать далее"),
-                    ),
-                  ),
-                ],
+                      child: Opacity(
+                        opacity: isLocked ? 0.65 : 1.0,
+                        child: _buildCourseCard(
+                          course['title'] ?? '',
+                          course['description'] ?? '',
+                          statusLabel,
+                          progress.toDouble(),
+                          isDark,
+                          isLocked: isLocked,
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPromoBanner(
+    AppState state,
+    Map<String, dynamic>? bannerCourse,
+    bool isDark, {
+    Map<String, dynamic>? activeCourse,
+    List<dynamic>? courses,
+  }) {
+    final hasProgress = activeCourse != null && _hasProgress(activeCourse);
+    final buttonLabel = hasProgress ? 'Продолжить обучение' : state.translate('courses_start');
+    final title = bannerCourse?['title'] ?? 'Базовый курс пилотирования';
+    final desc = bannerCourse?['description'] ?? 'Освойте основы управления дроном за 4 недели.';
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0066FF), Color(0xFF0033AA)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0066FF).withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasProgress)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                '▶ Продолжается',
+                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ),
-            const SizedBox(height: 30),
-
-            // --- 3. СПИСОК КУРСОВ ---
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Учебные курсы",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text("Все", style: TextStyle(color: Colors.blueAccent)),
-                )
-              ],
+          Text(
+            title,
+            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: 'Inter'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            desc,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF0066FF),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              elevation: 0,
             ),
-            const SizedBox(height: 10),
-
-            // Карточки курсов
-            _buildCourseCard(
-              title: "Introduction to Drones",
-              subtitle: "Основы управления и безопасности",
-              icon: Icons.flight_takeoff,
-              color: Colors.orange.shade100,
-              iconColor: Colors.orange,
+            onPressed: bannerCourse == null
+                ? null
+                : () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CourseDetailScreen(course: bannerCourse),
+                      ),
+                    ).then((_) => _refreshCourses());
+                  },
+            child: Text(
+              buttonLabel,
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            _buildCourseCard(
-              title: "Intermediate to Drones",
-              subtitle: "Сложные маневры и съемка",
-              icon: Icons.videocam,
-              color: Colors.purple.shade100,
-              iconColor: Colors.purple,
-            ),
-            _buildCourseCard(
-              title: "Продвинутый уровень",
-              subtitle: "Полеты в сложных условиях",
-              icon: Icons.speed,
-              color: Colors.red.shade100,
-              iconColor: Colors.red,
-            ),
-            _buildCourseCard(
-              title: "Профессионал",
-              subtitle: "Коммерческая съемка и лицензия",
-              icon: Icons.verified,
-              color: Colors.green.shade100,
-              iconColor: Colors.green,
-            ),
-          ],
-        ),
+          )
+        ],
       ),
     );
   }
 
-  // Функция для создания карточки курса
-  Widget _buildCourseCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required Color iconColor,
-  }) {
+  Widget _buildCourseCard(String title, String desc, String status, double progress, bool isDark, {bool isLocked = false}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(15),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: isDark ? const Color(0xFF0A0D1A) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 2,
-            offset: const Offset(0, 5),
-          ),
+            color: isDark ? Colors.black26 : Colors.black12,
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          )
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(15),
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+              color: isDark ? Colors.white : Colors.black87,
+              fontFamily: 'Inter',
             ),
-            child: Icon(icon, color: iconColor, size: 30),
           ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 5),
-                Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text(
+            desc,
+            style: const TextStyle(color: Colors.grey, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              if (!isLocked) ...[
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: isDark ? const Color(0xFF1B233D) : const Color(0xFFE2E8F0),
+                      valueColor: const AlwaysStoppedAnimation(Color(0xFF0066FF)),
+                      minHeight: 6,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
               ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.blueAccent),
+              Text(
+                status,
+                style: TextStyle(
+                  color: isLocked ? Colors.grey : const Color(0xFF0066FF), 
+                  fontWeight: FontWeight.w800, 
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          )
         ],
       ),
     );

@@ -19,6 +19,26 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    val configureAction = Action<Project> {
+        if (plugins.hasPlugin("com.android.application") || plugins.hasPlugin("com.android.library")) {
+            val android = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+            android?.let {
+                if (it.namespace == null) {
+                    it.namespace = "uz.skycheck." + project.name.replace("-", "_").replace(".", "_")
+                }
+            }
+        }
+    }
+    if (state.executed) {
+        configureAction.execute(this)
+    } else {
+        afterEvaluate {
+            configureAction.execute(this)
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

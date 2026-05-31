@@ -13,7 +13,29 @@ model User {
   password  String
   name      String
   role      String   @default("user") // "user" | "admin"
+  avatar    String?
+  phone     String?
+  language  String   @default("ru")
   createdAt DateTime @default(now())
+  orders    Order[]
+  reviews   Review[]
+  supportRequests SupportRequest[]
+  
+  exp          Int               @default(0)
+  level        Int               @default(1)
+  achievements UserAchievement[]
+
+  // Security and admin properties
+  isBlocked      Boolean              @default(false)
+  blockedAt      DateTime?
+  blockedBy      String?
+  blockReason    String?
+  blocks         UserBlock[]
+  adminActions   AdminAction[]        @relation("AdminActionLog")
+  actionTargets  AdminAction[]        @relation("TargetUserLog")
+  lessonProgress UserLessonProgress[]
+  courseBlocks   UserCourseBlock[]
+  violations     ScreenshotViolation[]
 }
 
 model Zone {
@@ -40,6 +62,8 @@ model Course {
   iconType    String       // "beginner" | "intermediate" | "advanced" | "pro"
   color       String
   steps       CourseStep[]
+  
+  courseBlocks UserCourseBlock[]
 }
 
 model CourseStep {
@@ -51,4 +75,167 @@ model CourseStep {
   title     String
   content   String? // text content or YouTube URL
   questions Json?   // [{question, options: [], answer: 0}]
+
+  // Timer and exam controls
+  videoUrl             String?
+  videoDurationSeconds Int?
+  isFinalExam          Boolean               @default(false)
+  progress             UserLessonProgress[]
+  violations           ScreenshotViolation[]
+}
+
+model Product {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String?
+  price       Float
+  imageUrl    String?
+  images      String[]    @default([])
+  stock       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orders      OrderItem[]
+  reviews     Review[]
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id])
+  totalAmount Float
+  status      String      @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  createdAt   DateTime    @default(now())
+  items       OrderItem[]
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float   // Price at the time of purchase
+}
+
+model SupportRequest {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  status    String   @default("PENDING") // PENDING, RESOLVED
+  createdAt DateTime @default(now())
+}
+
+model CourseCompletion {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  courseId    Int
+  completedAt DateTime @default(now())
+  studentName String?
+
+  // Certificate info
+  certificateIssuedAt      DateTime?
+  certificateUuid          String?           @unique
+  finalScore               Float?
+  lessonsCompletionPercent Float?
+
+  @@unique([userId, courseId])
+}
+
+model UserAchievement {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+model AboutSection {
+  id        Int     @id @default(autoincrement())
+  key       String  @unique // e.g. "who_we_are", "history", "office", "license"
+  titleRu   String
+  titleUz   String
+  titleEn   String
+  descRu    String
+  descUz    String
+  descEn    String
+  imageUrl  String?
+  mapIframe String?
+  order     Int     @default(0)
+}
+
+model UserBlock {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blockedBy   String
+  blockedAt   DateTime  @default(now())
+  unblockedAt DateTime?
+  reason      String?
+}
+
+model AdminAction {
+  id           Int      @id @default(autoincrement())
+  adminId      Int
+  actionType   String
+  targetUserId Int
+  details      String?
+  createdAt    DateTime @default(now())
+
+  admin        User     @relation("AdminActionLog", fields: [adminId], references: [id], onDelete: Cascade)
+  targetUser   User     @relation("TargetUserLog", fields: [targetUserId], references: [id], onDelete: Cascade)
+}
+
+model UserLessonProgress {
+  id                   Int        @id @default(autoincrement())
+  userId               Int
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stepId               Int
+  step                 CourseStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  status               String     @default("not_started") // "not_started" | "in_progress" | "completed"
+  scrollCompleted      Boolean    @default(false)
+  timeSpentSeconds     Int        @default(0)
+  lessonStartedAt      DateTime?
+  isTimerCompleted     Boolean    @default(false)
+  updatedAt            DateTime   @updatedAt
+  
+  quizAttempts         Int        @default(0)
+  cooldownUntil        DateTime?
+
+  @@unique([userId, stepId])
+}
+
+model UserCourseBlock {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId     Int
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  blockedAt    DateTime @default(now())
+  blockedUntil DateTime
+
+  @@unique([userId, courseId])
+}
+
+model ScreenshotViolation {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stepId    Int
+  step      CourseStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  timestamp DateTime   @default(now())
 }

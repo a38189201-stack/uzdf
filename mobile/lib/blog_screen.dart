@@ -1,171 +1,171 @@
 import 'package:flutter/material.dart';
+import 'app_state.dart';
+import 'api_service.dart';
+import 'news_detail_screen.dart';
 
-class BlogScreen extends StatelessWidget {
+class BlogScreen extends StatefulWidget {
   const BlogScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text("Новости и Блог", style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView.builder(
-        itemCount: 10, // Увеличим количество для примера
-        padding: const EdgeInsets.all(15),
-        itemBuilder: (context, index) => GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => BlogDetailScreen(index: index)),
-          ),
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Картинка новости
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                  child: Image.network(
-                    "https://picsum.photos/600/300?random=$index",
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Заголовок новости №${index + 1}",
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Узнайте последние подробности об изменениях в законодательстве для владельцев дронов в Узбекистане...",
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        "Читать далее →",
-                        style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  State<BlogScreen> createState() => _BlogScreenState();
 }
 
-class BlogDetailScreen extends StatelessWidget {
-  final int index;
-  const BlogDetailScreen({super.key, required this.index});
+class _BlogScreenState extends State<BlogScreen> {
+  late Future<List<dynamic>> _newsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _newsFuture = ApiService.fetchNews();
+  }
+
+  void _refreshNews() {
+    setState(() {
+      _newsFuture = ApiService.fetchNews();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView( // Добавили прокрутку
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Верхняя часть с картинкой и кнопкой назад
-            Stack(
-              children: [
-                Image.network(
-                  "https://picsum.photos/600/400?random=$index",
-                  width: double.infinity,
-                  height: 300,
-                  fit: BoxFit.cover,
-                ),
-                Positioned(
-                  top: 40,
-                  left: 20,
-                  child: CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.black),
-                      onPressed: () => Navigator.pop(context),
+    return ValueListenableBuilder<String>(
+      valueListenable: AppState().currentLanguage,
+      builder: (context, lang, child) {
+        final state = AppState();
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              state.translate('news_title'),
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _refreshNews,
+              )
+            ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: () async => _refreshNews(),
+            child: FutureBuilder<List<dynamic>>(
+              future: _newsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Нет доступных новостей',
+                      style: TextStyle(color: Colors.grey),
                     ),
+                  );
+                }
+
+                final newsList = snapshot.data!;
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: newsList.length,
+                  itemBuilder: (context, index) {
+                    final item = newsList[index];
+                    final author = item['author'] ?? 'SkyCheck';
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NewsDetailScreen(news: item),
+                          ),
+                        );
+                      },
+                      child: _buildNewsCard(
+                        item['title'] ?? '',
+                        item['content'] ?? '',
+                        author,
+                        item['imageUrl'],
+                        isDark,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNewsCard(String title, String desc, String author, String? imageUrl, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0A0D1A) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: isDark ? Colors.black26 : Colors.black12,
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 160,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF050814) : const Color(0xFFF1F5F9),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: imageUrl != null && imageUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(Icons.image_outlined, size: 48, color: isDark ? Colors.grey : Colors.grey[400]);
+                      },
+                    ),
+                  )
+                : Icon(Icons.image_outlined, size: 48, color: isDark ? Colors.grey : Colors.grey[400]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                    color: isDark ? Colors.white : Colors.black87,
+                    fontFamily: 'Inter',
                   ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  desc,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.grey, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  author.toUpperCase(),
+                  style: const TextStyle(color: Color(0xFF0066FF), fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5),
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Как безопасно летать в Ташкенте: Полный гид №$index",
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Опубликовано: 09 Мая, 2024",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const Divider(height: 30),
-                  Text(
-                    "Здесь находится полный текст статьи. Использование беспилотных летательных аппаратов (БПЛА) в Узбекистане регулируется специальными правилами. "
-                    "\n\nВо-первых, необходимо знать границы красных и желтых зон. Во-вторых, ваш дрон должен быть зарегистрирован. Наша платформа SkyCheck помогает автоматизировать этот процесс и сделать полеты безопасными для всех участников воздушного движения.",
-                    style: TextStyle(fontSize: 16, height: 1.5, color: Colors.black.withOpacity(0.8)),
-                  ),
-                  const SizedBox(height: 40),
-                  
-                  // Кнопки Навигации (Новее / Старее)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Кнопка влево (Новее)
-                      ElevatedButton.icon(
-                        onPressed: index > 0 ? () {
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BlogDetailScreen(index: index - 1)));
-                        } : null, // Если новость самая первая, кнопка не активна
-                        icon: const Icon(Icons.arrow_back_ios, size: 16),
-                        label: const Text("Новее"),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-                      ),
-                      
-                      // Кнопка вправо (Старее)
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => BlogDetailScreen(index: index + 1)));
-                        },
-                        icon: const Icon(Icons.arrow_forward_ios, size: 16),
-                        label: const Text("Старее"),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

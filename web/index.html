@@ -3,64 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkyCheck — Безопасные полёты над Ташкентом</title>
-  <meta name="description" content="SkyCheck — платформа для пилотов дронов в Ташкенте. Карта зон полётов, курсы обучения, актуальные новости.">
+  <title>SkyCheck — Безопасные полёты БПЛА в Узбекистане</title>
+  <meta name="description" content="SkyCheck — интерактивная карта зон полетов дронов, курсы пилотирования, магазин оборудования и сертификация пилотов БПЛА.">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
 <!-- NAVBAR -->
 <nav class="navbar">
   <div class="navbar-logo" onclick="showPage('home')">✈ SkyCheck</div>
-  <div class="navbar-links">
-    <a onclick="showPage('home')" id="nav-home" class="active">Главная</a>
-    <a onclick="showPage('news')" id="nav-news">Новости</a>
-    <a onclick="showPage('map')" id="nav-map">Карта</a>
-    <a onclick="showPage('courses')" id="nav-courses">Курсы</a>
-    <a onclick="showPage('login')" id="nav-login" class="btn-login">Войти</a>
+  <div class="navbar-links" id="navbar-links">
+    <a onclick="showPage('home')" id="nav-home" class="active" data-i18n="nav_home">Главная</a>
+    <a onclick="showPage('news')" id="nav-news" data-i18n="nav_news">Новости</a>
+    <a onclick="showPage('map')" id="nav-map" data-i18n="nav_map">Карта</a>
+    <a onclick="showPage('courses')" id="nav-courses" data-i18n="nav_courses">Курсы</a>
+    <a onclick="showPage('shop')" id="nav-shop" data-i18n="nav_shop">Магазин</a>
+    <a onclick="showPage('login')" id="nav-login" class="btn-login" data-i18n="nav_login">Войти</a>
+    <a onclick="showPage('profile')" id="nav-profile" class="btn-profile" style="display:none" data-i18n="nav_profile">Профиль</a>
+  </div>
+  <div class="nav-controls">
+    <select id="lang-select" class="lang-select" onchange="changeLanguage(this.value)">
+      <option value="ru">RU</option>
+      <option value="uz">UZ</option>
+      <option value="en">EN</option>
+    </select>
+    <button id="theme-btn" class="btn-theme" onclick="toggleTheme()">🌙</button>
   </div>
 </nav>
 
+<!-- TOAST CONTAINER -->
+<div id="toast-container" class="toast-container" style="position:fixed; bottom:24px; right:24px; z-index:1000000; display:flex; flex-direction:column; gap:10px"></div>
+
 <!-- ══════════════ LOGIN PAGE ══════════════ -->
-<div class="page" id="page-login" style="padding-top:0">
+<div class="page" id="page-login">
   <div class="login-page">
     <div class="login-card">
-      <h2>✈ SkyCheck</h2>
-      <p>Войдите в аккаунт или создайте новый</p>
+      <h2 id="login-header-title">✈ Sky<span>Check</span></h2>
+      <p id="login-header-sub" data-i18n="login_sub">Войдите в аккаунт пилота БПЛА</p>
       <div class="login-tabs">
-        <button class="login-tab active" onclick="switchTab('signin')">Войти</button>
-        <button class="login-tab" onclick="switchTab('signup')">Регистрация</button>
+        <button class="login-tab active" onclick="switchTab('signin')" id="tab-btn-signin" data-i18n="login_tab_signin">Войти</button>
+        <button class="login-tab" onclick="switchTab('signup')" id="tab-btn-signup" data-i18n="login_tab_signup">Регистрация</button>
       </div>
       <div id="login-alert"></div>
 
       <!-- SIGN IN -->
       <div id="tab-signin">
         <div class="form-group">
-          <label>Email</label>
-          <input type="email" id="signin-email" placeholder="pilot@example.com">
+          <label data-i18n="form_email">Email</label>
+          <input type="email" id="signin-email" placeholder="pilot@skycheck.uz">
         </div>
         <div class="form-group">
-          <label>Пароль</label>
+          <label data-i18n="form_password">Пароль</label>
           <input type="password" id="signin-password" placeholder="••••••••">
         </div>
-        <button class="btn btn-primary btn-full" onclick="doLogin()">Войти</button>
+        <button class="btn btn-primary btn-full" onclick="doLogin()" data-i18n="login_btn_signin">Войти</button>
       </div>
 
       <!-- SIGN UP -->
       <div id="tab-signup" style="display:none">
         <div class="form-group">
-          <label>Имя</label>
-          <input type="text" id="signup-name" placeholder="Ваше имя">
+          <label data-i18n="form_name">Имя</label>
+          <input type="text" id="signup-name" placeholder="Иван Иванов">
         </div>
         <div class="form-group">
-          <label>Email</label>
-          <input type="email" id="signup-email" placeholder="pilot@example.com">
+          <label data-i18n="form_email">Email</label>
+          <input type="email" id="signup-email" placeholder="pilot@skycheck.uz">
         </div>
         <div class="form-group">
-          <label>Пароль</label>
+          <label data-i18n="form_password">Пароль</label>
           <input type="password" id="signup-password" placeholder="Минимум 6 символов">
         </div>
-        <button class="btn btn-primary btn-full" onclick="doRegister()">Создать аккаунт</button>
+        <button class="btn btn-primary btn-full" onclick="doRegister()" data-i18n="login_btn_signup">Зарегистрироваться</button>
       </div>
     </div>
   </div>
@@ -68,57 +83,130 @@
 
 <!-- ══════════════ HOME PAGE ══════════════ -->
 <div class="page active" id="page-home">
-  <!-- Hero -->
+  <!-- Hero Section -->
   <section class="hero">
+    <!-- Left Column: Text & Stats -->
     <div class="hero-content">
-      <div class="hero-badge">🛸 Платформа для пилотов дронов</div>
-      <h1>Летайте безопасно<br>над <span>Ташкентом</span></h1>
-      <p>Проверяйте зоны полётов в реальном времени, проходите курсы обучения и следите за последними новостями законодательства для пилотов БПЛА.</p>
+      <div class="hero-badge" data-i18n="hero_badge">🛸 Единая платформа для пилотов БПЛА</div>
+      <h1 id="hero-main-title" data-i18n="hero_title"><span class="outline-text">БЕЗОПАСНЫЙ</span><span class="blue">ПОЛЕТ</span></h1>
+      <p class="hero-sub" data-i18n="hero_desc">Проверяйте зоны полетов дронов в реальном времени, проходите обучение с получением сертификатов пилотов и покупайте профессиональное оборудование.</p>
       <div class="hero-btns">
-        <button class="btn btn-primary" onclick="showPage('map')">🗺 Открыть карту</button>
-        <button class="btn btn-secondary" onclick="showPage('courses')">📚 Начать учиться</button>
+        <button class="btn btn-primary" onclick="showPage('map')" data-i18n="hero_btn_map">🗺 Открыть карту</button>
+        <button class="btn btn-ghost" onclick="showPage('courses')" data-i18n="hero_btn_courses">📚 Обучение пилотов</button>
       </div>
       <div class="hero-stats">
         <div>
           <div class="hero-stat-num" id="stat-zones">—</div>
-          <div class="hero-stat-label">Зон на карте</div>
+          <div class="hero-stat-label" data-i18n="stat_zones">Зон на карте</div>
         </div>
         <div>
           <div class="hero-stat-num" id="stat-courses">—</div>
-          <div class="hero-stat-label">Курсов</div>
+          <div class="hero-stat-label" data-i18n="stat_courses">Курсов</div>
         </div>
         <div>
           <div class="hero-stat-num" id="stat-news">—</div>
-          <div class="hero-stat-label">Новостей</div>
+          <div class="hero-stat-label" data-i18n="stat_news">Новостей</div>
         </div>
       </div>
     </div>
+
+    <!-- Center Column: Floating 3D Drone & Hotspots -->
+    <div class="hero-drone-container">
+      <img src="/img/hero_drone.png" alt="Drone" class="hero-drone-img">
+      <!-- Interactive Hotspots -->
+      <div class="hotspot hotspot-1" data-tooltip="HD Camera 4K / 60FPS">
+        <div class="hotspot-dot"></div>
+      </div>
+      <div class="hotspot hotspot-2" data-tooltip="LiDAR Airspace Scanning">
+        <div class="hotspot-dot"></div>
+      </div>
+      <div class="hotspot hotspot-3" data-tooltip="Active Air Safety Guard">
+        <div class="hotspot-dot"></div>
+      </div>
+    </div>
+
+    <!-- Right Column: Floating FPV Pilot Card -->
+    <div class="hero-pilot-card">
+      <img src="/img/hero_pilot.png" alt="FPV Pilot" class="hero-pilot-img">
+      <div class="hero-pilot-overlay">
+        <span class="pilot-tag">DRONER</span>
+        <p class="pilot-text" data-i18n="hero_pilot_text">Присоединяйтесь к крупнейшему событию.</p>
+        <button class="btn pilot-btn" onclick="showPage('courses')">JOIN</button>
+      </div>
+      <div class="floating-circle"></div>
+    </div>
   </section>
 
-  <!-- Latest News -->
+  <!-- News Section -->
   <section class="section">
     <div class="section-header">
-      <h2 class="section-title">Актуальные <span>новости</span></h2>
-      <button class="btn btn-secondary" onclick="showPage('news')">Все новости →</button>
+      <div>
+        <div class="section-eyebrow" data-i18n="section_news_eyebrow">Блог</div>
+        <h2 class="section-title" data-i18n="section_news_title">Актуальные <span>новости</span></h2>
+      </div>
+      <button class="btn btn-secondary" onclick="showPage('news')" data-i18n="all_news_btn">Все новости →</button>
     </div>
-    <div class="cards-grid" id="home-news-grid">
+    <div class="news-grid" id="home-news-grid">
       <div class="loading"><div class="spinner"></div></div>
     </div>
   </section>
 
-  <!-- Courses Preview -->
+  <!-- Courses Section -->
   <section class="section" style="padding-top:0">
     <div class="section-header">
-      <h2 class="section-title">Учебные <span>курсы</span></h2>
-      <button class="btn btn-secondary" onclick="showPage('courses')">Все курсы →</button>
+      <div>
+        <div class="section-eyebrow" data-i18n="section_courses_eyebrow">Академия</div>
+        <h2 class="section-title" data-i18n="section_courses_title">Курсы <span>обучения</span></h2>
+      </div>
+      <button class="btn btn-secondary" onclick="showPage('courses')" data-i18n="all_courses_btn">Все курсы →</button>
     </div>
-    <div id="home-courses-list">
+    <div class="courses-list" id="home-courses-list">
       <div class="loading"><div class="spinner"></div></div>
     </div>
   </section>
 
-  <footer>
-    <p>© 2024 <span>SkyCheck Tashkent</span> · Безопасные полёты над городом</p>
+  <!-- About Us Section -->
+  <section class="section" style="padding-top:0">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow" data-i18n="section_about_eyebrow">О нас</div>
+        <h2 class="section-title" data-i18n="section_about_title">Познакомьтесь с <span class="blue">SkyCheck</span></h2>
+      </div>
+    </div>
+    <div class="about-rows" id="about-rows-container">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer-main">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="footer-logo">✈ SkyCheck</div>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-top:12px; line-height:1.6" data-i18n="footer_sub">Платформа мониторинга полетных зон и сертификации пилотов гражданских БПЛА в Узбекистане.</p>
+        <div style="display:flex; gap:12px; margin-top:20px">
+          <a href="https://instagram.com" target="_blank" style="text-decoration:none; font-size:1.5rem">📸</a>
+          <a href="https://t.me" target="_blank" style="text-decoration:none; font-size:1.5rem">📢</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <div class="footer-title" data-i18n="footer_nav_title">Навигация</div>
+        <a onclick="showPage('home')" data-i18n="nav_home">Главная</a>
+        <a onclick="showPage('news')" data-i18n="nav_news">Новости</a>
+        <a onclick="showPage('map')" data-i18n="nav_map">Карта</a>
+        <a onclick="showPage('courses')" data-i18n="nav_courses">Курсы</a>
+        <a onclick="showPage('shop')" data-i18n="nav_shop">Магазин</a>
+      </div>
+      <div class="footer-col">
+        <div class="footer-title" data-i18n="footer_legal_title">Юридическая информация</div>
+        <a onclick="openTermsModal()" data-i18n="profile_terms_title">Пользовательское соглашение</a>
+        <a onclick="openLicenseInfo()" data-i18n="profile_license_title">Сведения о лицензии БПЛА</a>
+        <a onclick="openSupportModal()" data-i18n="support_feedback_btn">Служба поддержки</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy" data-i18n="footer_copy">© 2024 SkyCheck. Все права защищены.</div>
+    </div>
   </footer>
 </div>
 
@@ -127,38 +215,164 @@
   <div class="section">
     <div id="news-list-view">
       <div class="section-header">
-        <h2 class="section-title">Новости и <span>блог</span></h2>
+        <div>
+          <div class="section-eyebrow" data-i18n="section_news_eyebrow">Блог</div>
+          <h2 class="section-title" data-i18n="section_news_title">Новости и <span class="blue">обновления</span></h2>
+        </div>
       </div>
-      <div class="cards-grid" id="news-grid">
+      <div class="news-grid" id="news-grid">
         <div class="loading"><div class="spinner"></div></div>
       </div>
     </div>
     <div id="news-detail-view" style="display:none">
-      <button class="back-btn" onclick="showNewsList()">← Назад к новостям</button>
+      <button class="back-btn" onclick="showNewsList()" data-i18n="btn_back">← Назад</button>
       <div id="news-detail-content"></div>
     </div>
   </div>
 </div>
 
 <!-- ══════════════ MAP PAGE ══════════════ -->
-<div class="page" id="page-map" style="padding-top:0">
-  <div class="map-page-wrapper">
-    <div id="public-map"></div>
-    <div class="map-legend">
-      <strong style="margin-right:8px">Зоны:</strong>
-      <div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div> Запрещено (RED)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div> Ограничено (YELLOW)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div> Разрешено (GREEN)</div>
+<div class="page" id="page-map">
+  <div class="map-page-layout">
+    <!-- LEFT: MAP -->
+    <div class="map-column">
+      <div id="public-map" style="width:100%; height:100%"></div>
+      <!-- MAP LEGEND -->
+      <div class="map-legend">
+        <div class="map-legend-title" data-i18n="map_legend_title">Зоны БПЛА</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> <span data-i18n="zone_red">Запрещено (RED)</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> <span data-i18n="zone_yellow">Ограничено (YELLOW)</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div> <span data-i18n="zone_green">Разрешено (GREEN)</span></div>
+      </div>
     </div>
+
+    <!-- RIGHT: WEATHER SIDEBAR -->
+    <aside class="weather-sidebar" id="weather-sidebar">
+      <!-- Header -->
+      <div class="ws-header">
+        <div class="ws-header-icon">🛡️</div>
+        <div>
+          <h3 class="ws-title" data-i18n="weather_widget_title">Безопасность полётов</h3>
+          <div class="ws-city" id="ws-city">📍 Ташкент</div>
+        </div>
+      </div>
+
+      <!-- Status Banner -->
+      <div class="ws-status-banner ws-status-safe" id="ws-status-banner">
+        <div class="ws-status-icon" id="ws-status-icon">☀️</div>
+        <div>
+          <div class="ws-status-text" id="ws-status-text" data-i18n="weather_safe">Полеты разрешены</div>
+          <div class="ws-status-sub" id="ws-status-sub">Отличные условия для полётов</div>
+        </div>
+      </div>
+
+      <!-- Forecast Tabs: Today / Tomorrow / Day after -->
+      <div class="ws-forecast-tabs">
+        <button class="ws-tab active" onclick="switchWeatherTab('today')" id="ws-tab-today" data-i18n="weather_today">Сегодня</button>
+        <button class="ws-tab" onclick="switchWeatherTab('tomorrow')" id="ws-tab-tomorrow" data-i18n="weather_tomorrow">Завтра</button>
+        <button class="ws-tab" onclick="switchWeatherTab('day2')" id="ws-tab-day2" data-i18n="weather_day2">Послезавтра</button>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="ws-metrics-grid" id="ws-metrics-grid">
+        <!-- Temperature -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">🌡️</div>
+          <div class="ws-metric-label" data-i18n="weather_temp">Температура</div>
+          <div class="ws-metric-value" id="ws-temp">+28°C</div>
+          <div class="ws-metric-extra" id="ws-temp-feel">Ощущается +30°C</div>
+        </div>
+        <!-- Wind Speed + Direction -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">💨</div>
+          <div class="ws-metric-label" data-i18n="weather_wind">Ветер</div>
+          <div class="ws-metric-value" id="ws-wind">4.2 м/с</div>
+          <div class="ws-metric-extra" id="ws-wind-dir">
+            <span class="ws-compass" id="ws-compass-arrow" style="display:inline-block; transform:rotate(45deg)">➤</span> СВ
+          </div>
+        </div>
+        <!-- Humidity -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">💧</div>
+          <div class="ws-metric-label" data-i18n="weather_humidity">Влажность</div>
+          <div class="ws-metric-value" id="ws-humidity">34%</div>
+          <div class="ws-metric-bar"><div class="ws-metric-bar-fill" id="ws-humidity-bar" style="width:34%"></div></div>
+        </div>
+        <!-- Air Pressure -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">🔵</div>
+          <div class="ws-metric-label" data-i18n="weather_pressure">Давление</div>
+          <div class="ws-metric-value" id="ws-pressure">1013 гПа</div>
+          <div class="ws-metric-extra" id="ws-pressure-trend">↗ Растёт</div>
+        </div>
+        <!-- Visibility -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">👁️</div>
+          <div class="ws-metric-label" data-i18n="weather_visibility">Видимость</div>
+          <div class="ws-metric-value" id="ws-visibility">10+ км</div>
+          <div class="ws-metric-extra ws-good" id="ws-visibility-status">Отличная</div>
+        </div>
+        <!-- UV Index -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">☀️</div>
+          <div class="ws-metric-label" data-i18n="weather_uv">УФ-индекс</div>
+          <div class="ws-metric-value" id="ws-uv">5</div>
+          <div class="ws-metric-extra ws-warn" id="ws-uv-status">Умеренный</div>
+        </div>
+        <!-- Air Quality (AQI) -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">🏭</div>
+          <div class="ws-metric-label" data-i18n="weather_aqi">Загрязнение воздуха</div>
+          <div class="ws-metric-value" id="ws-aqi">42 AQI</div>
+          <div class="ws-metric-bar ws-aqi-bar"><div class="ws-metric-bar-fill ws-aqi-fill" id="ws-aqi-bar" style="width:42%; background:var(--green)"></div></div>
+        </div>
+        <!-- Precipitation -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">🌧️</div>
+          <div class="ws-metric-label" data-i18n="weather_precip">Осадки</div>
+          <div class="ws-metric-value" id="ws-precip">0%</div>
+          <div class="ws-metric-extra ws-good" id="ws-precip-status">Без осадков</div>
+        </div>
+        <!-- Cloud Cover -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">☁️</div>
+          <div class="ws-metric-label" data-i18n="weather_clouds">Облачность</div>
+          <div class="ws-metric-value" id="ws-clouds">15%</div>
+          <div class="ws-metric-bar"><div class="ws-metric-bar-fill" id="ws-clouds-bar" style="width:15%; background:var(--text-muted)"></div></div>
+        </div>
+        <!-- Geomagnetic Index -->
+        <div class="ws-metric-card">
+          <div class="ws-metric-icon">🧲</div>
+          <div class="ws-metric-label" data-i18n="weather_kindex">Геомагнитный индекс</div>
+          <div class="ws-metric-value" id="ws-kindex">Kp 2</div>
+          <div class="ws-metric-extra ws-good" id="ws-kindex-status">Тихо</div>
+        </div>
+      </div>
+
+      <!-- Hourly Forecast -->
+      <div class="ws-hourly-section">
+        <div class="ws-section-label" data-i18n="weather_hourly">Прогноз по часам</div>
+        <div class="ws-hourly-scroll" id="ws-hourly-scroll">
+          <!-- filled by JS -->
+        </div>
+      </div>
+
+      <!-- Last Updated -->
+      <div class="ws-footer">
+        <span class="ws-updated" id="ws-updated">Обновлено: только что</span>
+        <button class="ws-refresh-btn" onclick="refreshWeatherData()" title="Обновить">🔄</button>
+      </div>
+    </aside>
   </div>
-  <!-- Zone Info Popup -->
+
+  <!-- ZONE POPUP -->
   <div id="zone-popup" class="zone-popup" style="display:none">
     <div class="zone-popup-card">
       <h3 id="popup-name"></h3>
-      <div class="zone-info-row">Тип: <span id="popup-type" class="zone-type-badge"></span></div>
-      <div class="zone-info-row">✈ Макс. высота: <strong id="popup-alt"></strong> м</div>
+      <div class="zone-info-row"><span data-i18n="zone_type">Тип зоны</span>: <span id="popup-type" class="zone-type-badge"></span></div>
+      <div class="zone-info-row"><span data-i18n="zone_altitude">Макс. высота</span>: <strong id="popup-alt"></strong> м</div>
       <div style="margin-top:20px">
-        <button class="btn btn-primary" onclick="closeZonePopup()">Понятно</button>
+        <button class="btn btn-primary" onclick="closeZonePopup()" data-i18n="modal_close_btn">Понятно</button>
       </div>
     </div>
   </div>
@@ -169,72 +383,860 @@
   <div class="section">
     <div id="courses-list-view">
       <div class="section-header">
-        <h2 class="section-title">Учебные <span>курсы</span></h2>
+        <div>
+          <div class="section-eyebrow" data-i18n="section_courses_eyebrow">Академия</div>
+          <h2 class="section-title" data-i18n="section_courses_title">Программа <span>обучения пилотов</span></h2>
+        </div>
       </div>
-      <div id="courses-list">
+      <div class="courses-list" id="courses-list">
         <div class="loading"><div class="spinner"></div></div>
       </div>
     </div>
+
+    <!-- COURSE VIEWER -->
     <div id="course-viewer-view" style="display:none">
-      <button class="back-btn" onclick="showCoursesList()">← Назад к курсам</button>
+      <button class="back-btn" onclick="showCoursesList()" data-i18n="btn_back">← Назад</button>
       <div class="course-viewer">
         <div class="course-viewer-header">
-          <h2 id="viewer-title" style="font-family:'Rajdhani',sans-serif;font-size:1.8rem;font-weight:700"></h2>
-          <p id="viewer-desc" style="color:var(--text-muted);margin-top:8px"></p>
+          <h2 id="viewer-title" style="font-size:1.8rem; font-weight:700"></h2>
+          <p id="viewer-desc" style="color:var(--text-muted); margin-top:8px"></p>
         </div>
         <div class="steps-nav" id="steps-nav"></div>
-        <div class="step-content-box" id="step-content"></div>
-        <div class="step-nav-btns">
-          <button class="btn btn-secondary" id="prev-step-btn" onclick="prevStep()">← Назад</button>
-          <button class="btn btn-primary" id="next-step-btn" onclick="nextStep()">Далее →</button>
+        <div class="step-content-box" id="step-content" style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:32px; margin-top:24px; position:relative"></div>
+        <div class="step-nav-btns" style="display:flex; justify-content:space-between; margin-top:24px">
+          <button class="btn btn-secondary" id="prev-step-btn" onclick="prevStep()" data-i18n="btn_back_step">← Назад</button>
+          <button class="btn btn-primary" id="next-step-btn" onclick="nextStep()" data-i18n="btn_next_step">Далее →</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- ══════════════ SHOP PAGE ══════════════ -->
+<div class="page" id="page-shop">
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow" data-i18n="nav_shop">Магазин</div>
+        <h2 class="section-title" data-i18n="shop_header_title">Оборудование для <span>пилотов</span></h2>
+      </div>
+      <button class="btn btn-primary" onclick="toggleCart(true)" style="position:relative">
+        🛒 <span data-i18n="shop_cart">Корзина</span>
+        <span id="cart-badge" style="background:var(--red); color:#fff; font-size:0.75rem; border-radius:50%; width:18px; height:18px; display:none; justify-content:center; align-items:center; position:absolute; top:-8px; right:-8px">0</span>
+      </button>
+    </div>
+    <div class="shop-grid" id="shop-products-grid">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- PRODUCT DETAIL VIEW -->
+  <div id="product-detail-view" style="display:none" class="section">
+    <button class="back-btn" onclick="showProductsCatalog()" data-i18n="shop_back_catalog">← В каталог</button>
+    <div class="profile-layout" style="margin-top:24px; gap:40px">
+      <!-- Image Carousel -->
+      <div style="flex:1">
+        <div class="product-gallery" style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; overflow:hidden; padding:24px; text-align:center">
+          <img id="pd-main-img" src="" style="max-width:100%; max-height:400px; object-fit:contain; border-radius:8px">
+          <div id="pd-carousel-thumbs" style="display:flex; justify-content:center; gap:10px; margin-top:16px; flex-wrap:wrap"></div>
+        </div>
+      </div>
+      <!-- Details -->
+      <div style="flex:1; display:flex; flex-direction:column; gap:20px">
+        <h1 id="pd-title" style="font-size:2rem; font-weight:800"></h1>
+        <div style="display:flex; align-items:center; gap:12px">
+          <span id="pd-stock-badge" class="badge"></span>
+          <strong id="pd-price" style="font-size:1.8rem; color:var(--blue)"></strong>
+        </div>
+        <p id="pd-desc" style="color:var(--text-muted); line-height:1.7; font-size:1rem"></p>
+        <button class="btn btn-primary" onclick="addCurrentProductToCart()" id="pd-buy-btn" style="width:fit-content" data-i18n="shop_add_cart">Добавить в корзину</button>
+        
+        <!-- Reviews -->
+        <div style="margin-top:32px; border-top:1px solid var(--border); padding-top:32px">
+          <h3 data-i18n="shop_reviews_title">Отзывы покупателей</h3>
+          <div id="pd-reviews-list" style="display:flex; flex-direction:column; gap:16px; margin-top:16px"></div>
+          
+          <!-- Submit Review -->
+          <div id="pd-review-form-box" style="margin-top:24px; background:var(--bg-card); padding:20px; border:1px solid var(--border); border-radius:12px">
+            <h4 style="margin:0 0 12px 0" data-i18n="shop_write_review">Оставить отзыв</h4>
+            <div id="pd-review-alert"></div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label data-i18n="shop_rating">Оценка (1-5)</label>
+              <select id="pr-rating" style="background:#111; color:#fff; border:1px solid var(--border); border-radius:4px; padding:6px; width:80px">
+                <option value="5">⭐⭐⭐⭐⭐</option>
+                <option value="4">⭐⭐⭐⭐</option>
+                <option value="3">⭐⭐⭐</option>
+                <option value="2">⭐⭐</option>
+                <option value="1">⭐</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:16px">
+              <label data-i18n="shop_comment">Комментарий</label>
+              <textarea id="pr-comment" rows="3" placeholder="Ваше мнение о товаре..." style="background:#111; color:#fff; border:1px solid var(--border); border-radius:4px; padding:8px; width:100%"></textarea>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="submitProductReview()" data-i18n="shop_btn_send">Отправить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CART SIDEBAR OVERLAY -->
+  <div class="cart-overlay" id="cart-overlay" style="display:none" onclick="toggleCart(false)">
+    <div class="cart-panel" onclick="event.stopPropagation()">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+        <h3 style="margin:0" data-i18n="shop_cart">Корзина</h3>
+        <button class="cart-close" onclick="toggleCart(false)">✕</button>
+      </div>
+      <div id="cart-items-container" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:16px"></div>
+      <div class="cart-footer">
+        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:1.1rem; margin-bottom:16px">
+          <span data-i18n="shop_total">Итого</span>
+          <span id="cart-total-price">$0.00</span>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="checkout()" data-i18n="shop_btn_checkout">Оформить заказ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PROFILE PAGE ══════════════ -->
+<div class="page" id="page-profile">
+  <div class="section">
+    <div class="profile-layout">
+      <!-- Sidebar -->
+      <aside class="profile-sidebar">
+        <div class="profile-avatar-box">
+          <div class="profile-avatar" id="prof-avatar-placeholder">U</div>
+          <h3 class="profile-name" id="prof-display-name">Пилот</h3>
+          <p class="profile-email" id="prof-display-email">pilot@skycheck.uz</p>
+        </div>
+        
+        <!-- EXP & LEVEL PROGRESS -->
+        <div style="margin:20px 0; border:1px solid var(--border); border-radius:8px; padding:16px; background:rgba(0,0,0,0.1)">
+          <div style="display:flex; justify-content:space-between; font-weight:700; font-size:0.9rem; margin-bottom:8px">
+            <span id="prof-level-badge">Уровень: 1</span>
+            <span id="prof-exp-txt">0 / 100 XP</span>
+          </div>
+          <div style="width:100%; height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden">
+            <div id="prof-exp-fill" style="width:0%; height:100%; background:var(--blue); transition:width 0.4s ease"></div>
+          </div>
+        </div>
+
+        <nav class="profile-nav" style="display:flex; flex-direction:column; gap:8px">
+          <button class="pnav-btn active" onclick="switchProfileTab('info', this)" data-i18n="profile_tab_info">Личные данные</button>
+          <button class="pnav-btn" onclick="switchProfileTab('orders', this)" data-i18n="profile_tab_orders">Мои заказы</button>
+          <button class="pnav-btn" onclick="switchProfileTab('achievements', this)" data-i18n="profile_tab_achievements">Достижения</button>
+          <button class="pnav-btn" onclick="switchProfileTab('certs', this)" data-i18n="profile_tab_certs">Сертификаты</button>
+          <button class="btn btn-danger btn-full" onclick="doLogout()" style="margin-top:20px" data-i18n="profile_btn_logout">Выйти из аккаунта</button>
+        </nav>
+      </aside>
+
+      <!-- Content -->
+      <main class="profile-content" id="profile-content-tab" style="flex:1">
+        <!-- Tab: Info -->
+        <div class="profile-tab-section" id="ptab-info">
+          <h2 style="margin-bottom:24px" data-i18n="profile_tab_info">Личные данные</h2>
+          <div id="profile-edit-alert"></div>
+          <div class="form-row">
+            <div class="form-group"><label data-i18n="form_name">Имя</label><input type="text" id="prof-name"></div>
+            <div class="form-group"><label data-i18n="form_email">Email</label><input type="email" id="prof-email"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label data-i18n="form_phone">Телефон</label><input type="text" id="prof-phone" placeholder="+998 (90) 123-45-67"></div>
+            <div class="form-group"><label data-i18n="form_language">Язык интерфейса</label>
+              <select id="prof-language">
+                <option value="ru">Русский (RU)</option>
+                <option value="uz">O'zbekcha (UZ)</option>
+                <option value="en">English (EN)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveProfileInfo()" data-i18n="profile_btn_save">Сохранить изменения</button>
+        </div>
+
+        <!-- Tab: Orders -->
+        <div class="profile-tab-section" id="ptab-orders" style="display:none">
+          <h2 style="margin-bottom:24px" data-i18n="profile_tab_orders">История заказов</h2>
+          <div id="my-orders-list" style="display:flex; flex-direction:column; gap:20px"></div>
+        </div>
+
+        <!-- Tab: Achievements -->
+        <div class="profile-tab-section" id="ptab-achievements" style="display:none">
+          <h2 style="margin-bottom:24px" data-i18n="profile_tab_achievements">Мои достижения</h2>
+          <div class="achievements-grid" id="my-achievements-grid"></div>
+        </div>
+
+        <!-- Tab: Certificates -->
+        <div class="profile-tab-section" id="ptab-certs" style="display:none">
+          <h2 style="margin-bottom:24px" data-i18n="profile_tab_certs">Цифровые сертификаты БПЛА</h2>
+          <div class="cert-grid" id="my-certificates-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- TERMS MODAL -->
+<div class="cart-overlay" id="terms-modal" style="display:none; justify-content:center; align-items:center; z-index:100000">
+  <div class="cart-panel" style="max-width:600px; margin:5% auto; height:auto; max-height:80vh; border-radius:16px; padding:32px; background:var(--bg-card); border:1px solid var(--border); display:flex; flex-direction:column">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+      <h3 style="margin:0" data-i18n="profile_terms_title">Пользовательское соглашение</h3>
+      <button class="cart-close" onclick="closeTermsModal()" style="position:static">✕</button>
+    </div>
+    <div style="flex:1; overflow-y:auto; background:var(--bg); padding:24px; border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-size:0.9rem; line-height:1.6; margin-bottom:20px">
+      <p data-i18n="terms_intro">Добро пожаловать в SkyCheck. Используя нашу платформу, вы соглашаетесь со следующими условиями:</p>
+      <p data-i18n="terms_1" style="margin-top:12px">1. Вы обязуетесь соблюдать правила полетов в Республике Узбекистан.</p>
+      <p data-i18n="terms_2" style="margin-top:12px">2. Информация на карте предоставляется "как есть" и может не быть на 100% точной в каждый момент времени.</p>
+      <p data-i18n="terms_3" style="margin-top:12px">3. Возврат товаров из магазина возможен в течение 14 дней в нераспечатанном виде.</p>
+      <p data-i18n="terms_4" style="margin-top:12px">4. Администрация SkyCheck не несет ответственности за нарушения правил полетов пилотами.</p>
+    </div>
+    <button class="btn btn-primary" onclick="closeTermsModal()" style="justify-content:center" data-i18n="modal_close_btn">Понятно</button>
+  </div>
+</div>
+
+<!-- LICENSE MODAL -->
+<div class="cart-overlay" id="license-modal" style="display:none; justify-content:center; align-items:center; z-index:100000">
+  <div class="cart-panel" style="max-width:600px; margin:5% auto; height:auto; max-height:80vh; border-radius:16px; padding:32px; background:var(--bg-card); border:1px solid var(--border); display:flex; flex-direction:column">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+      <h3 style="margin:0" data-i18n="profile_license_title">Сведения о лицензии БПЛА</h3>
+      <button class="cart-close" onclick="closeLicenseModal()" style="position:static">✕</button>
+    </div>
+    <div style="flex:1; overflow-y:auto; background:var(--bg); padding:24px; border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-size:0.9rem; line-height:1.6; margin-bottom:20px">
+      <p data-i18n="license_body_1">Платформа SkyCheck сертифицирована Агентством гражданской авиации Республики Узбекистан.</p>
+      <p data-i18n="license_body_2" style="margin-top:12px">Номер лицензии: № БПЛА-2024-089 от 15.05.2024.</p>
+      <p data-i18n="license_body_3" style="margin-top:12px">Интерактивная карта зон мониторинга воздушного пространства обновляется ежедневно на основе данных Агентства гражданской авиации.</p>
+    </div>
+    <button class="btn btn-primary" onclick="closeLicenseModal()" style="justify-content:center" data-i18n="modal_close_btn">Понятно</button>
+  </div>
+</div>
+
+<!-- CERTIFICATE NAME MODAL -->
+<div class="cart-overlay" id="cert-name-modal" style="display:none; justify-content:center; align-items:center; z-index:100000">
+  <div class="cart-panel" style="max-width:440px; margin:10% auto; height:auto; border-radius:16px; padding:32px; background:var(--bg-card); border:1px solid var(--border)">
+    <h3 style="margin:0 0 8px 0" data-i18n="cert_congrat_title">Поздравляем с прохождением курса!</h3>
+    <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px" data-i18n="cert_congrat_desc">Для генерации цифрового именного сертификата введите ваше имя:</p>
+    <div class="form-group" style="margin-bottom:24px">
+      <label data-i18n="form_name">Имя пилота</label>
+      <input type="text" id="cert-student-name" placeholder="Иван Иванов">
+    </div>
+    <div style="display:flex; gap:12px">
+      <button class="btn btn-primary" style="flex:1; justify-content:center" onclick="generateAndDownloadCert()" data-i18n="cert_btn_generate">Создать сертификат</button>
+      <button class="btn btn-secondary" onclick="closeCertNameModal()" data-i18n="modal_cancel_btn">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUPPORT FEEDBACK MODAL -->
+<div class="cart-overlay" id="support-modal" style="display:none; justify-content:center; align-items:center; z-index:100000">
+  <div class="cart-panel" style="max-width:500px; margin:10% auto; height:auto; border-radius:16px; padding:32px; background:var(--bg-card); border:1px solid var(--border)">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+      <h3 style="margin:0" data-i18n="support_feedback_btn">Служба поддержки</h3>
+      <button class="cart-close" onclick="closeSupportModal()" style="position:static">✕</button>
+    </div>
+    <div id="support-alert"></div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label data-i18n="support_message_label">Ваше сообщение</label>
+      <textarea id="support-message" rows="5" placeholder="Опишите вашу проблему или задайте вопрос..." style="background:#111; color:#fff; border:1px solid var(--border); border-radius:4px; padding:10px; width:100%"></textarea>
+    </div>
+    <div style="display:flex; gap:12px">
+      <button class="btn btn-primary" style="flex:1; justify-content:center" onclick="submitSupportRequest()" data-i18n="shop_btn_send">Отправить</button>
+      <button class="btn btn-secondary" onclick="closeSupportModal()" data-i18n="modal_cancel_btn">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="cart-overlay" id="payment-modal" style="display:none; justify-content:center; align-items:center; z-index:100000">
+  <div class="cart-panel" style="max-width:480px; margin:5% auto; height:auto; border-radius:16px; padding:32px; background:var(--bg-card); border:1px solid var(--border)">
+    
+    <!-- Screen 1: Select payment provider -->
+    <div id="pay-select-screen">
+      <h3 style="margin:0 0 8px 0" data-i18n="pay_title">Выбор способа оплаты</h3>
+      <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px" data-i18n="pay_select_desc">Выберите платежную систему для оплаты заказа:</p>
+      
+      <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px">
+        <div class="pay-option-card" onclick="selectPaymentMethod('click')" style="display:flex; align-items:center; justify-content:space-between; border:1px solid var(--border); border-radius:8px; padding:16px; cursor:pointer; transition:all 0.3s; background:rgba(0,138,228,0.05)">
+          <span style="font-weight:700; color:#008ae4">CLICK PAY</span>
+          <span style="font-size:1.2rem">🔵</span>
+        </div>
+        <div class="pay-option-card" onclick="selectPaymentMethod('payme')" style="display:flex; align-items:center; justify-content:space-between; border:1px solid var(--border); border-radius:8px; padding:16px; cursor:pointer; transition:all 0.3s; background:rgba(0,192,170,0.05)">
+          <span style="font-weight:700; color:#00c0aa">PAYME</span>
+          <span style="font-size:1.2rem">🟢</span>
+        </div>
+        <div class="pay-option-card" onclick="selectPaymentMethod('uzum')" style="display:flex; align-items:center; justify-content:space-between; border:1px solid var(--border); border-radius:8px; padding:16px; cursor:pointer; transition:all 0.3s; background:rgba(124,58,237,0.05)">
+          <span style="font-weight:700; color:#7c3aed">UZUM PAY</span>
+          <span style="font-size:1.2rem">🟣</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-full" onclick="cancelPayment()" data-i18n="modal_cancel_btn">Отмена</button>
+    </div>
+
+    <!-- Screen 2: Card input overlay (Click / Payme / Uzum specific styles) -->
+    <div id="pay-click-screen" style="display:none">
+      <div style="text-align:center; margin-bottom:20px">
+        <h2 id="pay-provider-title" style="font-size:1.8rem; font-weight:800; color:#008ae4">CLICK</h2>
+        <div style="font-size:0.9rem; color:var(--text-muted)"><span data-i18n="pay_sum">Сумма к оплате</span>: <strong id="pay-click-amount" style="color:var(--text)">$0.00</strong></div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label data-i18n="pay_card_num">Номер карты</label>
+        <input type="text" id="pay-card-number" placeholder="8600 •••• •••• ••••" maxlength="19" oninput="formatCardNumber(this)">
+      </div>
+      <div class="form-row" style="margin-bottom:24px">
+        <div class="form-group">
+          <label data-i18n="pay_card_expiry">Срок действия</label>
+          <input type="text" id="pay-card-expiry" placeholder="ММ/ГГ" maxlength="5" oninput="formatCardExpiry(this)">
+        </div>
+      </div>
+      <div style="display:flex; gap:12px">
+        <button class="btn btn-primary" style="flex:1; justify-content:center" onclick="sendPaymentOTP()" data-i18n="pay_btn_continue">Продолжить</button>
+        <button class="btn btn-secondary" onclick="backToPaySelect()" data-i18n="btn_back">Назад</button>
+      </div>
+    </div>
+
+    <!-- Screen 3: OTP confirmation -->
+    <div id="pay-sms-screen" style="display:none">
+      <h3 style="margin:0 0 8px 0" data-i18n="pay_otp_title">Подтверждение платежа</h3>
+      <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px" data-i18n="pay_otp_desc">Мы отправили симулированный СМС-код на ваш телефон. Введите код "1234":</p>
+      
+      <div id="pay-otp-alert"></div>
+      <div class="form-group" style="margin-bottom:24px">
+        <label data-i18n="pay_otp_code">Код из СМС</label>
+        <input type="text" id="pay-sms-code" placeholder="••••" style="text-align:center; font-size:1.5rem; letter-spacing:8px" maxlength="4">
+      </div>
+      <div style="display:flex; gap:12px">
+        <button class="btn btn-primary" style="flex:1; justify-content:center" onclick="confirmPaymentOTP()" data-i18n="pay_btn_confirm">Оплатить</button>
+        <button class="btn btn-secondary" onclick="backToCardInput()" data-i18n="btn_back">Назад</button>
+      </div>
+    </div>
+
+    <!-- Screen 4: Success state -->
+    <div id="pay-success-screen" style="display:none; text-align:center; padding:20px 0">
+      <div style="font-size:4rem; color:var(--success); margin-bottom:20px">✓</div>
+      <h3 style="margin-bottom:12px" data-i18n="pay_success_title">Оплата успешно проведена!</h3>
+      <p style="color:var(--text-muted); font-size:0.95rem; margin-bottom:24px"><span data-i18n="pay_success_desc">Ваш заказ оплачен. Мы начислили вам</span> <strong style="color:var(--blue)">+250 XP</strong>!</p>
+      <button class="btn btn-primary btn-full" onclick="closePaymentModal()" data-i18n="modal_close_btn">Закрыть</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════ SCRIPTS ══════════════ -->
 <script>
 const API = 'http://localhost:3000';
-let publicMap, allZones = [], allNews = [], allCourses = [];
+let publicMap, publicMapTiles, allZones = [], allNews = [], allCourses = [];
+let currentUser = null;
 let currentCourse = null, currentStepIdx = 0;
+let cart = [];
+let currentEstimatedTime = 0;
+let timeSpentSeconds = 0;
+let stepTimer = null;
+let isScrollCompleted = false;
+let quizQuestions = [];
+let quizSelectedAnswers = {};
+let currentTheme = 'dark';
+let currentLanguage = 'ru';
 
-// ── NAVIGATION ──
+// ── TRANSLATIONS DICTIONARY ──
+const translations = {
+  ru: {
+    nav_home: "Главная",
+    nav_news: "Новости",
+    nav_map: "Карта",
+    nav_courses: "Курсы",
+    nav_shop: "Магазин",
+    nav_login: "Войти",
+    nav_profile: "Профиль",
+    login_sub: "Войдите в аккаунт пилота БПЛА",
+    login_tab_signin: "Войти",
+    login_tab_signup: "Регистрация",
+    form_email: "Email",
+    form_password: "Пароль",
+    form_name: "Имя",
+    form_phone: "Телефон",
+    form_language: "Язык интерфейса",
+    login_btn_signin: "Войти в аккаунт",
+    login_btn_signup: "Создать аккаунт",
+    hero_badge: "🛸 Единая платформа для пилотов БПЛА",
+    hero_title: '<span class="outline-text">БЕЗОПАСНЫЙ</span><span class="blue">ПОЛЕТ</span>',
+    hero_pilot_text: "Присоединяйтесь к крупнейшему событию.",
+    hero_desc: "Проверяйте зоны полетов дронов в реальном времени, проходите обучение с получением сертификатов пилотов и покупайте профессиональное оборудование.",
+    hero_btn_map: "🗺 Открыть карту",
+    hero_btn_courses: "📚 Обучение пилотов",
+    stat_zones: "Зон на карте",
+    stat_courses: "Курсов обучения",
+    stat_news: "Новостей авиации",
+    section_news_eyebrow: "Блог",
+    section_news_title: "Новости и <span>обновления</span>",
+    all_news_btn: "Все новости →",
+    section_courses_eyebrow: "Академия",
+    section_courses_title: "Курсы <span>обучения</span>",
+    all_courses_btn: "Все курсы →",
+    section_about_eyebrow: "О нас",
+    section_about_title: "Познакомьтесь с <span class=\"blue\">SkyCheck</span>",
+    footer_sub: "Платформа мониторинга полетных зон и сертификации пилотов гражданских БПЛА в Узбекистане.",
+    footer_nav_title: "Навигация",
+    footer_legal_title: "Юридическая информация",
+    footer_copy: "© 2024 SkyCheck. Все права защищены.",
+    profile_terms_title: "Пользовательское соглашение",
+    profile_license_title: "Сведения о лицензии БПЛА",
+    support_feedback_btn: "Служба поддержки",
+    btn_back: "← Назад",
+    btn_back_step: "← Назад",
+    btn_next_step: "Далее →",
+    weather_widget_title: "Безопасность полётов",
+    weather_safe: "Полеты разрешены",
+    weather_caution: "Полеты с осторожностью",
+    weather_danger: "Полеты запрещены",
+    weather_wind: "Ветер",
+    weather_kindex: "Геомагнитный индекс",
+    weather_humidity: "Влажность",
+    weather_btn_check: "Обновить сводку (+100 XP)",
+    map_legend_title: "Зоны БПЛА",
+    zone_red: "Запрещено (RED)",
+    zone_yellow: "Ограничено (YELLOW)",
+    zone_green: "Разрешено (GREEN)",
+    zone_type: "Тип зоны",
+    zone_altitude: "Макс. высота",
+    modal_close_btn: "Понятно",
+    modal_cancel_btn: "Отмена",
+    shop_header_title: "Оборудование для <span>пилотов</span>",
+    shop_cart: "Корзина",
+    shop_add_cart: "Добавить в корзину",
+    shop_total: "Итого",
+    shop_btn_checkout: "Оформить заказ",
+    shop_back_catalog: "← В каталог",
+    shop_reviews_title: "Отзывы покупателей",
+    shop_write_review: "Оставить отзыв",
+    shop_rating: "Оценка (1-5)",
+    shop_comment: "Комментарий",
+    shop_btn_send: "Отправить",
+    profile_tab_info: "Личные данные",
+    profile_tab_orders: "Мои заказы",
+    profile_tab_achievements: "Достижения",
+    profile_tab_certs: "Сертификаты",
+    profile_btn_logout: "Выйти из аккаунта",
+    profile_btn_save: "Сохранить изменения",
+    terms_intro: "Добро пожаловать в SkyCheck. Используя нашу платформу, вы соглашаетесь со следующими условиями:",
+    terms_1: "1. Вы обязуетесь соблюдать правила полетов в Республике Узбекистан.",
+    terms_2: "2. Информация на карте предоставляется \"как есть\" и может не быть на 100% точной в каждый момент времени.",
+    terms_3: "3. Возврат товаров из магазина возможен в течение 14 дней в нераспечатанном виде.",
+    terms_4: "4. Администрация SkyCheck не несет ответственности за нарушения правил полетов пилотами.",
+    license_body_1: "Платформа SkyCheck сертифицирована Агентством гражданской авиации Республики Узбекистан.",
+    license_body_2: "Номер лицензии: № БПЛА-2024-089 от 15.05.2024.",
+    license_body_3: "Интерактивная карта зон мониторинга воздушного пространства обновляется ежедневно на основе данных Агентства гражданской авиации.",
+    cert_congrat_title: "Поздравляем с прохождением курса!",
+    cert_congrat_desc: "Для генерации цифрового именного сертификата введите ваше имя:",
+    cert_btn_generate: "Создать сертификат",
+    pay_title: "Выбор способа оплаты",
+    pay_select_desc: "Выберите платежную систему для оплаты заказа:",
+    pay_click_btn: "Оплатить через Click",
+    pay_payme_btn: "Оплатить через Payme",
+    pay_uzum_btn: "Оплатить через Uzum Pay",
+    pay_sum: "Сумма к оплате",
+    pay_card_num: "Номер карты",
+    pay_card_expiry: "Срок действия",
+    pay_btn_continue: "Продолжить",
+    pay_otp_title: "Подтверждение платежа",
+    pay_otp_desc: "Мы отправили симулированный СМС-код на ваш телефон. Введите код \"1234\":",
+    pay_otp_code: "Код из СМС",
+    pay_btn_confirm: "Оплатить заказ",
+    pay_success_title: "Оплата успешно проведена!",
+    pay_success_desc: "Ваш заказ оплачен. Мы начислили вам",
+    support_message_label: "Ваше сообщение в службу поддержки",
+    achievement_unlocked: "Разблокировано",
+    achievement_locked: "Заблокировано"
+  },
+  uz: {
+    nav_home: "Bosh sahifa",
+    nav_news: "Yangiliklar",
+    nav_map: "Xarita",
+    nav_courses: "Kurslar",
+    nav_shop: "Do'kon",
+    nav_login: "Kirish",
+    nav_profile: "Profil",
+    login_sub: "Uchuvchi profiliga kiring",
+    login_tab_signin: "Kirish",
+    login_tab_signup: "Ro'yxatdan o'tish",
+    form_email: "Email",
+    form_password: "Parol",
+    form_name: "Ism",
+    form_phone: "Telefon",
+    form_language: "Interface tili",
+    login_btn_signin: "Tizimga kirish",
+    login_btn_signup: "Profil yaratish",
+    hero_badge: "🛸 BPLA uchuvchilari uchun yagona platforma",
+    hero_title: '<span class="outline-text">XAVFSIZ</span><span class="blue">PARVOZ</span>',
+    hero_pilot_text: "Eng katta tadbirga qo'shiling.",
+    hero_desc: "Haqiqiy vaqtda dron parvozi zonalarini tekshiring, pilot sertifikatini olish uchun kurslarni yakunlang va do'kondan uskunalar sotib oling.",
+    hero_btn_map: "🗺 Xaritani ochish",
+    hero_btn_courses: "📚 O'qitish kurslari",
+    stat_zones: "Xaritadagi zonalar",
+    stat_courses: "O'qitish kurslari",
+    stat_news: "Yangiliklar soni",
+    section_news_eyebrow: "Blog",
+    section_news_title: "Yangiliklar va <span>yangilanishlar</span>",
+    all_news_btn: "Barcha yangiliklar →",
+    section_courses_eyebrow: "Akademiya",
+    section_courses_title: "O'qitish <span>kurslari</span>",
+    all_courses_btn: "Barcha kurslar →",
+    section_about_eyebrow: "Biz haqimizda",
+    section_about_title: "<span class=\"blue\">SkyCheck</span> bilan tanishing",
+    footer_sub: "O'zbekistonda fuqaro BPLA zonalarining monitoringi va pilotlarni sertifikatlash platformasi.",
+    footer_nav_title: "Navigatsiya",
+    footer_legal_title: "Yuridik ma'lumotlar",
+    footer_copy: "© 2024 SkyCheck. Barcha huquqlar himoyalangan.",
+    profile_terms_title: "Foydalanish shartlari",
+    profile_license_title: "BPLA litsenziyasi haqida",
+    support_feedback_btn: "Qo'llab-quvvatlash xizmati",
+    btn_back: "← Orqaga",
+    btn_back_step: "← Orqaga",
+    btn_next_step: "Keyingisi →",
+    weather_widget_title: "Parvoz xavfsizligi",
+    weather_safe: "Parvozlarga ruxsat berilgan",
+    weather_caution: "Ehtiyotkorlik bilan parvoz",
+    weather_danger: "Parvozlar taqiqlangan",
+    weather_wind: "Shamol",
+    weather_kindex: "Geomagnit indeks",
+    weather_humidity: "Namlik",
+    weather_btn_check: "Ma'lumotni yangilash (+100 XP)",
+    map_legend_title: "BPLA zonalari",
+    zone_red: "Taqiqlangan (RED)",
+    zone_yellow: "Cheklangan (YELLOW)",
+    zone_green: "Ruxsat etilgan (GREEN)",
+    zone_type: "Zona turi",
+    zone_altitude: "Maks. balandlik",
+    modal_close_btn: "Tushunarli",
+    modal_cancel_btn: "Bekor qilish",
+    shop_header_title: "Uchuvchilar uchun <span>uskunalar</span>",
+    shop_cart: "Savat",
+    shop_add_cart: "Savatga qo'shish",
+    shop_total: "Jami",
+    shop_btn_checkout: "Buyurtma berish",
+    shop_back_catalog: "← Katalogga",
+    shop_reviews_title: "Mijozlar fikrlari",
+    shop_write_review: "Fikr qoldirish",
+    shop_rating: "Baholash (1-5)",
+    shop_comment: "Izoh",
+    shop_btn_send: "Yuborish",
+    profile_tab_info: "Shaxsiy ma'lumotlar",
+    profile_tab_orders: "Buyurtmalarim",
+    profile_tab_achievements: "Yutuqlar",
+    profile_tab_certs: "Sertifikatlar",
+    profile_btn_logout: "Profildan chiqish",
+    profile_btn_save: "O'zgarishlarni saqlash",
+    terms_intro: "SkyCheck platformasiga xush kelibsiz. Tizimdan foydalanish orqali siz quyidagi shartlarga rozilik bildirasiz:",
+    terms_1: "1. O'zbekiston Respublikasida parvoz qoidalariga rioya qilishingiz shart.",
+    terms_2: "2. Xaritadagi ma'lumotlar boricha taqdim etiladi va har soniyada 100% aniq bo'lmasligi mumkin.",
+    terms_3: "3. Do'kondan sotib olingan tovarlarni ochilmagan holda 14 kun ichida qaytarish mumkin.",
+    terms_4: "4. SkyCheck ma'muriyati uchuvchilarning qoidabuzarliklari uchun javobgarlikni zimmasiga olmaydi.",
+    license_body_1: "SkyCheck platformasi O'zbekiston Respublikasi Fuqaro aviatsiyasi agentligi tomonidan sertifikatlangan.",
+    license_body_2: "Litsenziya raqami: № BPLA-2024-089 (15.05.2024 yildagi).",
+    license_body_3: "Havo hududining interaktiv xaritasi Fuqaro aviatsiyasi agentligi ma'lumotlari asosida har kuni yangilanadi.",
+    cert_congrat_title: "Kursni tugatganingiz bilan tabriklaymiz!",
+    cert_congrat_desc: "Raqamli sertifikatni shakllantirish uchun ismingizni kiriting:",
+    cert_btn_generate: "Sertifikat yaratish",
+    pay_title: "To'lov turini tanlash",
+    pay_select_desc: "Buyurtmani to'lash uchun tizimni tanlang:",
+    pay_click_btn: "Click orqali to'lash",
+    pay_payme_btn: "Payme orqali to'lash",
+    pay_uzum_btn: "Uzum Pay orqali to'lash",
+    pay_sum: "To'lov summasi",
+    pay_card_num: "Karta raqami",
+    pay_card_expiry: "Amal qilish muddati",
+    pay_btn_continue: "Davom etish",
+    pay_otp_title: "To'lovni tasdiqlash",
+    pay_otp_desc: "Telefoningizga SMS-kod yuborildi. \"1234\" kodini kiriting:",
+    pay_otp_code: "SMS kodi",
+    pay_btn_confirm: "Buyurtmani to'lash",
+    pay_success_title: "To'lov muvaffaqiyatli yakunlandi!",
+    pay_success_desc: "Buyurtma to'landi. Sizga berildi: ",
+    support_message_label: "Qo'llab-quvvatlash uchun xabaringiz",
+    achievement_unlocked: "Ochildi",
+    achievement_locked: "Yopiq"
+  },
+  en: {
+    nav_home: "Home",
+    nav_news: "News",
+    nav_map: "Map",
+    nav_courses: "Courses",
+    nav_shop: "Shop",
+    nav_login: "Login",
+    nav_profile: "Profile",
+    login_sub: "Log in to your pilot account",
+    login_tab_signin: "Sign In",
+    login_tab_signup: "Register",
+    form_email: "Email",
+    form_password: "Password",
+    form_name: "Name",
+    form_phone: "Phone",
+    form_language: "Language",
+    login_btn_signin: "Sign In",
+    login_btn_signup: "Create Account",
+    hero_badge: "🛸 Unified Platform for UAV Pilots",
+    hero_title: '<span class="outline-text">POWER</span><span class="blue">DRONES</span>',
+    hero_pilot_text: "JOIN the biggest event ever.",
+    hero_desc: "Check drone flight zones in real-time, complete training courses to earn pilot certificates, and purchase professional drone equipment.",
+    hero_btn_map: "🗺 Open Airspace Map",
+    hero_btn_courses: "📚 Pilot Academy",
+    stat_zones: "Map Zones",
+    stat_courses: "Training Courses",
+    stat_news: "News Posts",
+    section_news_eyebrow: "Blog",
+    section_news_title: "News and <span>Updates</span>",
+    all_news_btn: "All News →",
+    section_courses_eyebrow: "Academy",
+    section_courses_title: "Training <span>Courses</span>",
+    all_courses_btn: "All Courses →",
+    section_about_eyebrow: "About Us",
+    section_about_title: "Get to know <span class=\"blue\">SkyCheck</span>",
+    footer_sub: "Monitoring airspace zones and certifying civil UAV pilots in Uzbekistan.",
+    footer_nav_title: "Navigation",
+    footer_legal_title: "Legal Information",
+    footer_copy: "© 2024 SkyCheck. All rights reserved.",
+    profile_terms_title: "Terms of Service",
+    profile_license_title: "UAV License & Compliance",
+    support_feedback_btn: "Support Center",
+    btn_back: "← Back",
+    btn_back_step: "← Back",
+    btn_next_step: "Next →",
+    weather_widget_title: "Flight Safety",
+    weather_safe: "Flights Permitted",
+    weather_caution: "Cautionary Flights",
+    weather_danger: "Flights Prohibited",
+    weather_wind: "Wind",
+    weather_kindex: "Geomagnetic Index",
+    weather_humidity: "Humidity",
+    weather_btn_check: "Refresh Forecast (+100 XP)",
+    map_legend_title: "UAV Zones",
+    zone_red: "Restricted (RED)",
+    zone_yellow: "Warning (YELLOW)",
+    zone_green: "Permitted (GREEN)",
+    zone_type: "Zone Type",
+    zone_altitude: "Max Altitude",
+    modal_close_btn: "Got It",
+    modal_cancel_btn: "Cancel",
+    shop_header_title: "Gear for <span>Pilots</span>",
+    shop_cart: "Cart",
+    shop_add_cart: "Add to Cart",
+    shop_total: "Total",
+    shop_btn_checkout: "Checkout",
+    shop_back_catalog: "← Back to Catalog",
+    shop_reviews_title: "Customer Reviews",
+    shop_write_review: "Write a Review",
+    shop_rating: "Rating (1-5)",
+    shop_comment: "Comment",
+    shop_btn_send: "Submit",
+    profile_tab_info: "Personal Details",
+    profile_tab_orders: "My Orders",
+    profile_tab_achievements: "Achievements",
+    profile_tab_certs: "My Certificates",
+    profile_btn_logout: "Log Out",
+    profile_btn_save: "Save Changes",
+    terms_intro: "Welcome to SkyCheck. By using our platform, you agree to the following terms:",
+    terms_1: "1. You agree to follow the drone flight regulations of the Republic of Uzbekistan.",
+    terms_2: "2. Airspace zone map data is provided 'as is' and may not be 100% accurate at all times.",
+    terms_3: "3. Shop returns are accepted within 14 days in their original, unopened packaging.",
+    terms_4: "4. SkyCheck is not responsible for rules violated by pilots.",
+    license_body_1: "SkyCheck platform is certified by the Civil Aviation Agency of the Republic of Uzbekistan.",
+    license_body_2: "License number: No. UAV-2024-089 dated 15.05.2024.",
+    license_body_3: "The interactive flight zone monitoring map is updated daily based on Civil Aviation Agency datasets.",
+    cert_congrat_title: "Congratulations on completing the course!",
+    cert_congrat_desc: "Enter your name to generate a printable pilot certificate:",
+    cert_btn_generate: "Generate Certificate",
+    pay_title: "Select Payment System",
+    pay_select_desc: "Choose a payment gateway to pay for your order:",
+    pay_click_btn: "Pay with Click",
+    pay_payme_btn: "Pay with Payme",
+    pay_uzum_btn: "Pay with Uzum Pay",
+    pay_sum: "Order Amount",
+    pay_card_num: "Card Number",
+    pay_card_expiry: "Expiry Date",
+    pay_btn_continue: "Continue",
+    pay_otp_title: "Payment Verification",
+    pay_otp_desc: "We sent a simulated SMS confirmation code to your phone. Enter code \"1234\":",
+    pay_otp_code: "SMS OTP Code",
+    pay_btn_confirm: "Confirm Payment",
+    pay_success_title: "Payment Processed!",
+    pay_success_desc: "Your order has been paid. You earned",
+    support_message_label: "Your Message to Support",
+    achievement_unlocked: "Unlocked",
+    achievement_locked: "Locked"
+  }
+};
+
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fmtDate = d => d ? new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+const courseEmoji = t => ({ beginner: '🚀', intermediate: '🎯', advanced: '⚡', pro: '🏆' }[t] || '📚');
+
+function levelLabel(t, lang) {
+  if (lang === 'uz') {
+    return { beginner: 'Boshlovchi', intermediate: 'O\'rta', advanced: 'Ilg‘or', pro: 'Professional' }[t] || 'Kurs';
+  } else if (lang === 'en') {
+    return { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', pro: 'Professional' }[t] || 'Course';
+  }
+  return { beginner: 'Начинающий', intermediate: 'Средний', advanced: 'Продвинутый', pro: 'Профессионал' }[t] || 'Курс';
+}
+
+const ACHIEVEMENTS = {
+  first_steps: { nameRu: "Первый взлет", nameUz: "Birinchi parvoz", nameEn: "First Takeoff", descRu: "Сделайте свой первый шаг в курсах пилотирования.", descUz: "Uchish kurslaridagi birinchi qadamingizni bosing.", descEn: "Take your first step in drone piloting courses." },
+  theory_master: { nameRu: "Теоретик авиации", nameUz: "Aviatsiya nazariyotchisi", nameEn: "Aviation Theorist", descRu: "Успешно пройдите хотя бы 1 учебный курс.", descUz: "Kamida 1 ta kursni muvaffaqiyatli yakunlang.", descEn: "Successfully complete at least 1 training course." },
+  certified_pilot: { nameRu: "Дипломированный ас", nameUz: "Sertifikatlangan uchuvchi", nameEn: "Certified Ace", descRu: "Пройдите 3 курса обучения.", descUz: "3 ta o'qitish kursini yakunlang.", descEn: "Complete 3 training courses." },
+  all_courses: { nameRu: "Безопасное небо", nameUz: "Xavfsiz osmon", nameEn: "Safe Airspace", descRu: "Полностью пройдите все 5 учебных курсов.", descUz: "Barcha 5 ta kursni to'liq yakunlang.", descEn: "Complete all 5 training courses." }
+};
+
+// ── NAVIGATION & PAGE CONTROLS ──
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.navbar-links a').forEach(a => a.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   const navEl = document.getElementById('nav-' + name);
   if (navEl) navEl.classList.add('active');
-  if (name === 'map' && !publicMap) initPublicMap();
-  if (name === 'news' && !allNews.length) loadPublicNews();
-  if (name === 'courses' && !allCourses.length) loadPublicCourses();
+  
+  // Close mobile navigation drawer if open
+  document.getElementById('navbar-links').classList.remove('open');
+  
+  if (name === 'map') {
+    setTimeout(initPublicMap, 100);
+  } else if (name === 'news') {
+    loadPublicNews();
+  } else if (name === 'courses') {
+    loadPublicCourses();
+  } else if (name === 'shop') {
+    loadProductsCatalog();
+  } else if (name === 'profile') {
+    if (!currentUser) {
+      showPage('login');
+      showToast('Сначала авторизуйтесь!', 'error');
+    } else {
+      loadProfileData();
+    }
+  }
 }
 
-// ── AUTH TABS ──
+function toggleMobileMenu() {
+  document.getElementById('navbar-links').classList.toggle('open');
+}
+
+// ── THEME SWITCHER ──
+function toggleTheme() {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  document.getElementById('theme-btn').textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+  
+  // Dynamic Leaflet maps theme sync
+  if (publicMap && publicMapTiles) {
+    const url = currentTheme === 'dark'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    publicMapTiles.setUrl(url);
+  }
+}
+
+// ── LOCALIZATION TRIGGER ──
+function changeLanguage(lang) {
+  currentLanguage = lang;
+  document.getElementById('lang-select').value = lang;
+  
+  // Translate static data-i18n items
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[lang] && translations[lang][key]) {
+      el.innerHTML = translations[lang][key];
+    }
+  });
+
+  // Re-render dynamic elements based on selected locale
+  renderAboutSections();
+  renderHomeNews();
+  renderHomeCourses();
+  if (document.getElementById('page-news').classList.contains('active')) {
+    renderNewsList();
+  }
+  if (document.getElementById('page-courses').classList.contains('active')) {
+    renderCoursesList();
+  }
+  if (document.getElementById('page-shop').classList.contains('active')) {
+    renderProductsCatalog();
+  }
+  if (document.getElementById('page-profile').classList.contains('active')) {
+    loadProfileData();
+  }
+}
+
+// ── TOAST MESSAGES ──
+function showToast(message, type = 'success') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.style.background = type === 'success' ? 'var(--success)' : 'var(--danger)';
+  toast.style.color = '#fff';
+  toast.style.padding = '12px 24px';
+  toast.style.borderRadius = '8px';
+  toast.style.boxShadow = 'var(--shadow)';
+  toast.style.fontSize = '0.9rem';
+  toast.style.fontWeight = '600';
+  toast.style.animation = 'fadeUp 0.3s forwards';
+  toast.style.minWidth = '200px';
+  toast.style.display = 'flex';
+  toast.style.justifyContent = 'space-between';
+  toast.style.alignItems = 'center';
+  toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fff;cursor:pointer;margin-left:12px">✕</button>`;
+  
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'fadeDown 0.3s forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+// ── AUTH LOGIN/REGISTER TABS ──
 function switchTab(tab) {
   document.getElementById('tab-signin').style.display = tab === 'signin' ? 'block' : 'none';
   document.getElementById('tab-signup').style.display = tab === 'signup' ? 'block' : 'none';
-  document.querySelectorAll('.login-tab').forEach((t,i) => t.classList.toggle('active', (tab==='signin'&&i===0)||(tab==='signup'&&i===1)));
+  document.getElementById('tab-btn-signin').classList.toggle('active', tab === 'signin');
+  document.getElementById('tab-btn-signup').classList.toggle('active', tab === 'signup');
   document.getElementById('login-alert').innerHTML = '';
 }
 
-function showLoginAlert(msg, type='error') {
+function showLoginAlert(msg, type = 'error') {
   document.getElementById('login-alert').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
 }
 
+// ── BACKEND AUTHENTICATION API CALLS ──
 async function doLogin() {
   const email = document.getElementById('signin-email').value.trim();
   const password = document.getElementById('signin-password').value;
   if (!email || !password) return showLoginAlert('Заполните все поля');
+  
   try {
-    const r = await fetch(`${API}/auth/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
-    const data = await r.json();
-    if (!r.ok) return showLoginAlert(data.error);
-    localStorage.setItem('skycheck_token', data.token);
-    localStorage.setItem('skycheck_user', JSON.stringify(data.user));
-    if (data.user.role === 'admin') { window.location.href = '/admin'; }
-    else { showLoginAlert('Добро пожаловать, ' + data.user.name + '!', 'success'); setTimeout(()=>showPage('home'),1200); }
-  } catch { showLoginAlert('Ошибка соединения с сервером'); }
+    const r = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const d = await r.json();
+    if (!r.ok) return showLoginAlert(d.error);
+    
+    localStorage.setItem('skycheck_token', d.token);
+    localStorage.setItem('skycheck_user', JSON.stringify(d.user));
+    currentUser = d.user;
+    
+    showLoginAlert('Успешный вход!', 'success');
+    updateUserNavbarState();
+    
+    setTimeout(() => {
+      if (d.user.role === 'admin') {
+        window.location.href = '/admin';
+      } else {
+        showPage('home');
+      }
+    }, 1000);
+  } catch {
+    showLoginAlert('Ошибка подключения к серверу');
+  }
 }
 
 async function doRegister() {
@@ -242,115 +1244,197 @@ async function doRegister() {
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
   if (!name || !email || !password) return showLoginAlert('Заполните все поля');
+  
   try {
-    const r = await fetch(`${API}/auth/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, email, password}) });
-    const data = await r.json();
-    if (!r.ok) return showLoginAlert(data.error);
-    localStorage.setItem('skycheck_token', data.token);
-    localStorage.setItem('skycheck_user', JSON.stringify(data.user));
-    showLoginAlert('Аккаунт создан! Добро пожаловать, ' + data.user.name + '!', 'success');
-    setTimeout(()=>showPage('home'),1200);
-  } catch { showLoginAlert('Ошибка соединения с сервером'); }
+    const r = await fetch(`${API}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+    const d = await r.json();
+    if (!r.ok) return showLoginAlert(d.error);
+    
+    localStorage.setItem('skycheck_token', d.token);
+    localStorage.setItem('skycheck_user', JSON.stringify(d.user));
+    currentUser = d.user;
+    
+    showLoginAlert('Аккаунт успешно создан!', 'success');
+    updateUserNavbarState();
+    
+    setTimeout(() => {
+      showPage('home');
+    }, 1000);
+  } catch {
+    showLoginAlert('Ошибка соединения с сервером');
+  }
 }
 
-// ── HOME STATS ──
+function doLogout() {
+  localStorage.removeItem('skycheck_token');
+  localStorage.removeItem('skycheck_user');
+  currentUser = null;
+  updateUserNavbarState();
+  showPage('home');
+  showToast('Вы вышли из системы');
+}
+
+function checkUserLoginState() {
+  const token = localStorage.getItem('skycheck_token');
+  const user = localStorage.getItem('skycheck_user');
+  if (token && user) {
+    currentUser = JSON.parse(user);
+    updateUserNavbarState();
+  }
+}
+
+function updateUserNavbarState() {
+  if (currentUser) {
+    document.getElementById('nav-login').style.display = 'none';
+    document.getElementById('nav-profile').style.display = 'block';
+  } else {
+    document.getElementById('nav-login').style.display = 'block';
+    document.getElementById('nav-profile').style.display = 'none';
+  }
+}
+
+// ── GET INDEX STATS ──
 async function loadHomeStats() {
   try {
     const [zones, courses, news] = await Promise.all([
-      fetch(`${API}/zones`).then(r=>r.json()),
-      fetch(`${API}/courses`).then(r=>r.json()),
-      fetch(`${API}/news`).then(r=>r.json()),
+      fetch(`${API}/zones`).then(r => r.json()),
+      fetch(`${API}/courses`).then(r => r.json()),
+      fetch(`${API}/news`).then(r => r.json())
     ]);
-    document.getElementById('stat-zones').textContent = Array.isArray(zones) ? zones.length : 0;
-    document.getElementById('stat-courses').textContent = Array.isArray(courses) ? courses.length : 0;
-    document.getElementById('stat-news').textContent = Array.isArray(news) ? news.length : 0;
+    
     allZones = Array.isArray(zones) ? zones : [];
     allCourses = Array.isArray(courses) ? courses : [];
     allNews = Array.isArray(news) ? news : [];
+
+    document.getElementById('stat-zones').textContent = allZones.length;
+    document.getElementById('stat-courses').textContent = allCourses.length;
+    document.getElementById('stat-news').textContent = allNews.length;
+
     renderHomeNews();
     renderHomeCourses();
-  } catch(e) { console.error(e); }
+    renderAboutSections();
+  } catch (e) {
+    console.error('Error fetching home stats:', e);
+  }
 }
 
-// ── HOME NEWS ──
+// ── RENDER DYNAMIC ABOUT US ──
+async function renderAboutSections() {
+  const container = document.getElementById('about-rows-container');
+  try {
+    const sections = await fetch(`${API}/about`).then(r => r.json());
+    if (!Array.isArray(sections) || !sections.length) {
+      container.innerHTML = '<p style="color:var(--text-muted); text-align:center">Сведения о компании загружаются...</p>';
+      return;
+    }
+    
+    container.innerHTML = sections.map((s, idx) => {
+      const title = s[`title${currentLanguage.charAt(0).toUpperCase() + currentLanguage.slice(1)}`] || s.titleRu;
+      const desc = s[`desc${currentLanguage.charAt(0).toUpperCase() + currentLanguage.slice(1)}`] || s.descRu;
+      
+      const isOdd = idx % 2 === 0;
+      const visualContent = s.mapIframe 
+        ? `<div class="about-map-frame" style="width:100%; height:320px; border-radius:12px; overflow:hidden; border:1px solid var(--border)">
+             <iframe src="${s.mapIframe}" width="100%" height="100%" style="border:0" allowfullscreen="" loading="lazy"></iframe>
+           </div>`
+        : s.imageUrl
+          ? `<img src="${s.imageUrl}" style="width:100%; height:320px; object-fit:cover; border-radius:12px; border:1px solid var(--border)" onerror="this.src='/img/drone_tashkent.png'">`
+          : `<div style="width:100%; height:320px; border-radius:12px; background:var(--bg-card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:4rem">🛸</div>`;
+      
+      return `
+        <div class="about-row" style="display:flex; flex-direction:${isOdd ? 'row' : 'row-reverse'}; gap:40px; margin-bottom:60px; align-items:center; flex-wrap:wrap">
+          <div style="flex:1; min-width:300px">
+            <h3 style="font-size:1.6rem; font-weight:750; margin-bottom:16px; color:var(--text)">${esc(title)}</h3>
+            <p style="color:var(--text-muted); line-height:1.75; font-size:1.02rem">${esc(desc)}</p>
+          </div>
+          <div style="flex:1; min-width:300px">
+            ${visualContent}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center">Ошибка загрузки сведений.</p>';
+  }
+}
+
+// ── RENDERING NEWS CARDS ──
 function renderHomeNews() {
   const grid = document.getElementById('home-news-grid');
-  const items = allNews.slice(0,3);
-  if (!items.length) { grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📰</div><p>Нет новостей</p></div>'; return; }
+  const items = allNews.slice(0, 3);
+  if (!items.length) {
+    grid.innerHTML = '<div class="empty-state"><span class="empty-state-icon">📰</span><p>Новости отсутствуют</p></div>';
+    return;
+  }
   grid.innerHTML = items.map(n => `
-    <div class="card" onclick="openNewsDetail(${n.id})">
-      <div class="card-img-placeholder">${n.imageUrl ? `<img src="${n.imageUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">` : '📰'}</div>
-      <div class="card-body">
-        <div class="card-tag">Новость</div>
-        <div class="card-title">${escHtml(n.title)}</div>
-        <div class="card-text">${escHtml(n.content.substring(0,120))}...</div>
+    <div class="news-card" onclick="openNewsDetail(${n.id})">
+      <div class="news-card-img-placeholder">
+        ${n.imageUrl ? `<img class="news-card-img" src="${n.imageUrl}" onerror="this.parentElement.textContent='📰'">` : '📰'}
       </div>
-      <div class="card-footer">
-        <span class="card-date">${formatDate(n.publishedAt)}</span>
-        <span class="card-link">Читать →</span>
+      <div class="news-card-body" style="padding:20px">
+        <span class="news-card-tag">${esc(n.author || 'SkyCheck')}</span>
+        <h3 class="news-card-title" style="margin:8px 0; font-size:1.15rem; font-weight:700">${esc(n.title)}</h3>
+        <p class="news-card-text" style="font-size:0.88rem; color:var(--text-muted); line-height:1.5">${esc(n.content.substring(0, 110))}...</p>
+      </div>
+      <div class="news-card-footer" style="padding:0 20px 20px; display:flex; justify-content:space-between; align-items:center">
+        <span class="news-card-date" style="font-size:0.75rem; color:var(--text-dim)">${fmtDate(n.publishedAt)}</span>
+        <span class="news-card-link" style="font-size:0.85rem; color:var(--blue); font-weight:600">Читать →</span>
       </div>
     </div>`).join('');
 }
 
-// ── HOME COURSES ──
-function renderHomeCourses() {
-  const list = document.getElementById('home-courses-list');
-  const items = allCourses.slice(0,4);
-  if (!items.length) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📚</div><p>Нет курсов</p></div>'; return; }
-  list.innerHTML = items.map(c => `
-    <div class="course-card" onclick="openCourse(${c.id})">
-      <div class="course-icon" style="background:${c.color}22">${courseEmoji(c.iconType)}</div>
-      <div class="course-info">
-        <div class="course-title">${escHtml(c.title)}</div>
-        <div class="course-desc">${escHtml(c.description)}</div>
-      </div>
-      <span class="course-steps-badge">${c.steps?.length||0} шагов</span>
-    </div>`).join('');
-}
-
-// ── NEWS ──
 async function loadPublicNews() {
+  const grid = document.getElementById('news-grid');
   try {
-    const data = await fetch(`${API}/news`).then(r=>r.json());
+    const data = await fetch(`${API}/news`).then(r => r.json());
     allNews = Array.isArray(data) ? data : [];
     renderNewsList();
-  } catch { document.getElementById('news-grid').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Ошибка загрузки</p></div>'; }
+  } catch {
+    grid.innerHTML = '<div class="empty-state"><span class="empty-state-icon">⚠️</span><p>Не удалось подключиться к серверу</p></div>';
+  }
 }
 
 function renderNewsList() {
   const grid = document.getElementById('news-grid');
-  if (!allNews.length) { grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📰</div><p>Нет новостей</p></div>'; return; }
+  if (!allNews.length) {
+    grid.innerHTML = '<div class="empty-state"><span class="empty-state-icon">📰</span><p>Нет доступных новостей</p></div>';
+    return;
+  }
   grid.innerHTML = allNews.map(n => `
-    <div class="card" onclick="openNewsDetail(${n.id})">
-      <div class="card-img-placeholder">${n.imageUrl ? `<img src="${n.imageUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='📰'">` : '📰'}</div>
-      <div class="card-body">
-        <div class="card-tag">${n.author||'SkyCheck'}</div>
-        <div class="card-title">${escHtml(n.title)}</div>
-        <div class="card-text">${escHtml(n.content.substring(0,150))}...</div>
+    <div class="news-card" onclick="openNewsDetail(${n.id})">
+      <div class="news-card-img-placeholder">
+        ${n.imageUrl ? `<img class="news-card-img" src="${n.imageUrl}" onerror="this.parentElement.textContent='📰'">` : '📰'}
       </div>
-      <div class="card-footer">
-        <span class="card-date">${formatDate(n.publishedAt)}</span>
-        <span class="card-link">Читать →</span>
+      <div class="news-card-body" style="padding:20px">
+        <span class="news-card-tag">${esc(n.author || 'SkyCheck')}</span>
+        <h3 class="news-card-title" style="margin:8px 0; font-size:1.15rem; font-weight:700">${esc(n.title)}</h3>
+        <p class="news-card-text" style="font-size:0.88rem; color:var(--text-muted); line-height:1.5">${esc(n.content.substring(0, 150))}...</p>
+      </div>
+      <div class="news-card-footer" style="padding:0 20px 20px; display:flex; justify-content:space-between; align-items:center">
+        <span class="news-card-date" style="font-size:0.75rem; color:var(--text-dim)">${fmtDate(n.publishedAt)}</span>
+        <span class="news-card-link" style="font-size:0.85rem; color:var(--blue); font-weight:600">Читать →</span>
       </div>
     </div>`).join('');
 }
 
 function openNewsDetail(id) {
   showPage('news');
-  const n = allNews.find(x=>x.id===id);
+  const n = allNews.find(x => x.id === id);
   if (!n) return;
+  
   document.getElementById('news-list-view').style.display = 'none';
   document.getElementById('news-detail-view').style.display = 'block';
   document.getElementById('news-detail-content').innerHTML = `
-    <div class="news-detail">
-      ${n.imageUrl ? `<div class="news-detail-hero"><img src="${escHtml(n.imageUrl)}" alt="${escHtml(n.title)}" onerror="this.parentElement.style.display='none'"></div>` : ''}
-      <h1>${escHtml(n.title)}</h1>
-      <div class="news-detail-meta">
-        <span>📅 ${formatDate(n.publishedAt)}</span>
-        ${n.author ? `<span>✍️ ${escHtml(n.author)}</span>` : ''}
-      </div>
-      <div class="news-detail-content">${escHtml(n.content)}</div>
-    </div>`;
+    <article class="news-detail-article" style="max-width:800px; margin:0 auto; padding:20px 0">
+      ${n.imageUrl ? `<img src="${n.imageUrl}" style="width:100%; max-height:420px; object-fit:cover; border-radius:16px; border:1px solid var(--border); margin-bottom:24px" onerror="this.style.display='none'">` : ''}
+      <span class="news-card-tag" style="padding:6px 12px; font-size:0.8rem">${esc(n.author || 'SkyCheck')}</span>
+      <h1 style="font-size:2.5rem; font-weight:800; margin:16px 0 8px 0; letter-spacing:-0.03em">${esc(n.title)}</h1>
+      <p style="color:var(--text-dim); font-size:0.9rem; margin-bottom:32px">📅 ${fmtDate(n.publishedAt)}</p>
+      <div style="font-size:1.1rem; line-height:1.8; color:var(--text-muted); white-space:pre-wrap">${esc(n.content)}</div>
+    </article>`;
 }
 
 function showNewsList() {
@@ -358,27 +1442,381 @@ function showNewsList() {
   document.getElementById('news-detail-view').style.display = 'none';
 }
 
-// ── COURSES ──
-async function loadPublicCourses() {
+// ── INTERACTIVE LEAFLET MAP & THEME SYNC ──
+function initPublicMap() {
+  if (publicMap) return;
+  
+  publicMap = L.map('public-map', {
+    zoomControl: true,
+    minZoom: 4
+  }).setView([41.3111, 69.2406], 12);
+
+  const tileUrl = currentTheme === 'dark'
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+  publicMapTiles = L.tileLayer(tileUrl, {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  }).addTo(publicMap);
+
+  loadMapZones();
+  updateWeatherWidgetUI();
+}
+
+// Sorting logic for polygon layers to handle click overlapping
+function getBoundsArea(coords) {
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+  for (const c of coords) {
+    const lat = Array.isArray(c) ? c[1] : c.lat;
+    const lng = Array.isArray(c) ? c[0] : c.lng;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+    if (lng < minLng) minLng = lng;
+    if (lng > maxLng) maxLng = lng;
+  }
+  return (maxLat - minLat) * (maxLng - minLng);
+}
+
+async function loadMapZones() {
   try {
-    const data = await fetch(`${API}/courses`).then(r=>r.json());
+    const res = await fetch(`${API}/zones`).then(r => r.json());
+    if (!Array.isArray(res)) return;
+    
+    // Sort zones by size in descending order
+    res.sort((a, b) => {
+      let coordsA = a.coordinates;
+      if (typeof coordsA === 'string') coordsA = JSON.parse(coordsA);
+      let coordsB = b.coordinates;
+      if (typeof coordsB === 'string') coordsB = JSON.parse(coordsB);
+      
+      return getBoundsArea(coordsB) - getBoundsArea(coordsA);
+    });
+
+    const colors = { RED: '#ef4444', YELLOW: '#f59e0b', GREEN: '#10b981' };
+    
+    res.forEach(z => {
+      let coords = z.coordinates;
+      if (typeof coords === 'string') {
+        try { coords = JSON.parse(coords); } catch { return; }
+      }
+      if (!Array.isArray(coords)) return;
+      
+      const paths = coords.map(p => Array.isArray(p) ? L.latLng(p[1], p[0]) : L.latLng(p.lat, p.lng));
+      const color = colors[z.type] || '#6B7280';
+      
+      const polygon = L.polygon(paths, {
+        color: color,
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 0.2,
+        className: 'zone-polygon'
+      }).addTo(publicMap);
+      
+      polygon.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        showZonePopup(z);
+      });
+    });
+  } catch (err) {
+    console.error('Error rendering zones on map:', err);
+  }
+}
+
+function showZonePopup(zone) {
+  document.getElementById('popup-name').textContent = zone.name;
+  document.getElementById('popup-alt').textContent = zone.maxAltitude;
+  
+  const typeEl = document.getElementById('popup-type');
+  typeEl.textContent = zone.type;
+  typeEl.className = 'zone-type-badge zone-' + zone.type.toLowerCase();
+  
+  document.getElementById('zone-popup').style.display = 'flex';
+}
+function closeZonePopup() {
+  document.getElementById('zone-popup').style.display = 'none';
+}
+
+// ── WEATHER SIDEBAR SYSTEM ──
+let currentWeatherTab = 'today';
+
+const weatherForecastData = {
+  today: {
+    temp: 28, feelsLike: 30, wind: 4.2, windDir: 'СВ', windDeg: 45,
+    humidity: 34, pressure: 1013, pressureTrend: 'up',
+    visibility: 10, uv: 5, aqi: 42, precip: 0, clouds: 15, kp: 2,
+    status: 'safe', icon: '☀️',
+    hourly: [
+      { h: 6, icon: '🌤️', t: 22, w: 2.1 }, { h: 7, icon: '🌤️', t: 23, w: 2.5 },
+      { h: 8, icon: '☀️', t: 25, w: 3.0 }, { h: 9, icon: '☀️', t: 26, w: 3.4 },
+      { h: 10, icon: '☀️', t: 27, w: 3.8 }, { h: 11, icon: '☀️', t: 28, w: 4.0 },
+      { h: 12, icon: '☀️', t: 29, w: 4.2 }, { h: 13, icon: '☀️', t: 30, w: 4.5 },
+      { h: 14, icon: '🌤️', t: 30, w: 4.3 }, { h: 15, icon: '🌤️', t: 29, w: 4.0 },
+      { h: 16, icon: '🌤️', t: 28, w: 3.6 }, { h: 17, icon: '🌤️', t: 27, w: 3.2 },
+      { h: 18, icon: '🌅', t: 25, w: 2.8 }, { h: 19, icon: '🌙', t: 23, w: 2.3 },
+      { h: 20, icon: '🌙', t: 22, w: 2.0 }, { h: 21, icon: '🌙', t: 21, w: 1.8 },
+    ]
+  },
+  tomorrow: {
+    temp: 31, feelsLike: 33, wind: 5.8, windDir: 'Ю', windDeg: 180,
+    humidity: 28, pressure: 1010, pressureTrend: 'down',
+    visibility: 8, uv: 7, aqi: 55, precip: 10, clouds: 30, kp: 3,
+    status: 'safe', icon: '🌤️',
+    hourly: [
+      { h: 6, icon: '🌤️', t: 24, w: 3.2 }, { h: 7, icon: '🌤️', t: 25, w: 3.5 },
+      { h: 8, icon: '☀️', t: 27, w: 4.1 }, { h: 9, icon: '☀️', t: 29, w: 4.8 },
+      { h: 10, icon: '☀️', t: 30, w: 5.2 }, { h: 11, icon: '☀️', t: 31, w: 5.5 },
+      { h: 12, icon: '🌤️', t: 32, w: 5.8 }, { h: 13, icon: '🌤️', t: 32, w: 6.0 },
+      { h: 14, icon: '⛅', t: 31, w: 5.6 }, { h: 15, icon: '⛅', t: 30, w: 5.2 },
+      { h: 16, icon: '⛅', t: 29, w: 4.8 }, { h: 17, icon: '🌤️', t: 28, w: 4.3 },
+      { h: 18, icon: '🌅', t: 26, w: 3.8 }, { h: 19, icon: '🌙', t: 24, w: 3.2 },
+      { h: 20, icon: '🌙', t: 23, w: 2.8 }, { h: 21, icon: '🌙', t: 22, w: 2.4 },
+    ]
+  },
+  day2: {
+    temp: 25, feelsLike: 24, wind: 8.4, windDir: 'СЗ', windDeg: 315,
+    humidity: 58, pressure: 1006, pressureTrend: 'down',
+    visibility: 5, uv: 3, aqi: 78, precip: 65, clouds: 75, kp: 4,
+    status: 'warn', icon: '🌧️',
+    hourly: [
+      { h: 6, icon: '🌧️', t: 19, w: 5.5 }, { h: 7, icon: '🌧️', t: 19, w: 6.0 },
+      { h: 8, icon: '🌧️', t: 20, w: 6.8 }, { h: 9, icon: '⛈️', t: 21, w: 7.5 },
+      { h: 10, icon: '⛈️', t: 22, w: 8.0 }, { h: 11, icon: '⛈️', t: 23, w: 8.4 },
+      { h: 12, icon: '🌧️', t: 24, w: 8.2 }, { h: 13, icon: '🌧️', t: 25, w: 7.8 },
+      { h: 14, icon: '🌧️', t: 25, w: 7.2 }, { h: 15, icon: '⛅', t: 24, w: 6.5 },
+      { h: 16, icon: '⛅', t: 23, w: 5.8 }, { h: 17, icon: '🌤️', t: 22, w: 5.0 },
+      { h: 18, icon: '🌅', t: 21, w: 4.2 }, { h: 19, icon: '🌙', t: 20, w: 3.5 },
+      { h: 20, icon: '🌙', t: 19, w: 3.0 }, { h: 21, icon: '🌙', t: 18, w: 2.6 },
+    ]
+  }
+};
+
+function switchWeatherTab(tab) {
+  currentWeatherTab = tab;
+  document.querySelectorAll('.ws-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('ws-tab-' + tab).classList.add('active');
+  renderWeatherSidebar();
+}
+
+function renderWeatherSidebar() {
+  const d = weatherForecastData[currentWeatherTab];
+  if (!d) return;
+
+  const lang = currentLanguage || 'ru';
+  const ms = lang === 'ru' ? 'м/с' : 'm/s';
+  const hpa = lang === 'ru' ? 'гПа' : 'hPa';
+  const km = lang === 'ru' ? 'км' : 'km';
+  const cityName = lang === 'uz' ? 'Toshkent' : lang === 'en' ? 'Tashkent' : 'Ташкент';
+
+  // City
+  const wsCity = document.getElementById('ws-city');
+  if (wsCity) wsCity.textContent = '📍 ' + cityName;
+
+  // Status banner
+  const banner = document.getElementById('ws-status-banner');
+  if (banner) {
+    banner.className = 'ws-status-banner ws-status-' + d.status;
+  }
+  const sIcon = document.getElementById('ws-status-icon');
+  if (sIcon) sIcon.textContent = d.icon;
+
+  const sText = document.getElementById('ws-status-text');
+  if (sText) {
+    if (d.status === 'safe') {
+      sText.textContent = lang === 'ru' ? 'Полёты разрешены' : lang === 'uz' ? 'Uchishga ruxsat' : 'Flights allowed';
+    } else if (d.status === 'warn') {
+      sText.textContent = lang === 'ru' ? 'Полёты с осторожностью' : lang === 'uz' ? 'Ehtiyotkorlik bilan' : 'Fly with caution';
+    } else {
+      sText.textContent = lang === 'ru' ? 'Полёты не рекомендуются' : lang === 'uz' ? 'Uchish tavsiya etilmaydi' : 'Not recommended';
+    }
+  }
+  const sSub = document.getElementById('ws-status-sub');
+  if (sSub) {
+    if (d.status === 'safe') sSub.textContent = lang === 'ru' ? 'Отличные условия для полётов' : 'Excellent conditions';
+    else if (d.status === 'warn') sSub.textContent = lang === 'ru' ? 'Сильный ветер и осадки' : 'Strong wind and rain';
+    else sSub.textContent = lang === 'ru' ? 'Опасные условия' : 'Dangerous conditions';
+  }
+
+  // Metrics
+  const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setT('ws-temp', '+' + d.temp + '°C');
+  setT('ws-temp-feel', (lang === 'ru' ? 'Ощущается ' : 'Feels ') + '+' + d.feelsLike + '°C');
+  setT('ws-wind', d.wind + ' ' + ms);
+
+  // Wind direction with compass
+  const windDirEl = document.getElementById('ws-wind-dir');
+  if (windDirEl) {
+    const compass = document.getElementById('ws-compass-arrow');
+    if (compass) compass.style.transform = 'rotate(' + d.windDeg + 'deg)';
+    windDirEl.innerHTML = '<span class="ws-compass" id="ws-compass-arrow" style="display:inline-block; transform:rotate(' + d.windDeg + 'deg)">➤</span> ' + d.windDir;
+  }
+
+  setT('ws-humidity', d.humidity + '%');
+  const humBar = document.getElementById('ws-humidity-bar');
+  if (humBar) humBar.style.width = d.humidity + '%';
+
+  setT('ws-pressure', d.pressure + ' ' + hpa);
+  const pTrend = document.getElementById('ws-pressure-trend');
+  if (pTrend) {
+    if (d.pressureTrend === 'up') pTrend.textContent = '↗ ' + (lang === 'ru' ? 'Растёт' : 'Rising');
+    else if (d.pressureTrend === 'down') pTrend.textContent = '↘ ' + (lang === 'ru' ? 'Падает' : 'Falling');
+    else pTrend.textContent = '→ ' + (lang === 'ru' ? 'Стабильно' : 'Stable');
+  }
+
+  setT('ws-visibility', d.visibility >= 10 ? '10+ ' + km : d.visibility + ' ' + km);
+  const visStatus = document.getElementById('ws-visibility-status');
+  if (visStatus) {
+    if (d.visibility >= 10) { visStatus.textContent = lang === 'ru' ? 'Отличная' : 'Excellent'; visStatus.className = 'ws-metric-extra ws-good'; }
+    else if (d.visibility >= 5) { visStatus.textContent = lang === 'ru' ? 'Хорошая' : 'Good'; visStatus.className = 'ws-metric-extra ws-good'; }
+    else { visStatus.textContent = lang === 'ru' ? 'Низкая' : 'Low'; visStatus.className = 'ws-metric-extra ws-warn'; }
+  }
+
+  setT('ws-uv', d.uv);
+  const uvSt = document.getElementById('ws-uv-status');
+  if (uvSt) {
+    if (d.uv <= 2) { uvSt.textContent = lang === 'ru' ? 'Низкий' : 'Low'; uvSt.className = 'ws-metric-extra ws-good'; }
+    else if (d.uv <= 5) { uvSt.textContent = lang === 'ru' ? 'Умеренный' : 'Moderate'; uvSt.className = 'ws-metric-extra ws-warn'; }
+    else { uvSt.textContent = lang === 'ru' ? 'Высокий' : 'High'; uvSt.className = 'ws-metric-extra ws-danger'; }
+  }
+
+  setT('ws-aqi', d.aqi + ' AQI');
+  const aqiBar = document.getElementById('ws-aqi-bar');
+  if (aqiBar) {
+    aqiBar.style.width = Math.min(d.aqi, 100) + '%';
+    if (d.aqi <= 50) aqiBar.style.background = 'var(--green)';
+    else if (d.aqi <= 100) aqiBar.style.background = 'var(--amber)';
+    else aqiBar.style.background = 'var(--red)';
+  }
+
+  setT('ws-precip', d.precip + '%');
+  const precipSt = document.getElementById('ws-precip-status');
+  if (precipSt) {
+    if (d.precip === 0) { precipSt.textContent = lang === 'ru' ? 'Без осадков' : 'None'; precipSt.className = 'ws-metric-extra ws-good'; }
+    else if (d.precip <= 30) { precipSt.textContent = lang === 'ru' ? 'Маловероятно' : 'Unlikely'; precipSt.className = 'ws-metric-extra ws-good'; }
+    else if (d.precip <= 60) { precipSt.textContent = lang === 'ru' ? 'Возможны' : 'Possible'; precipSt.className = 'ws-metric-extra ws-warn'; }
+    else { precipSt.textContent = lang === 'ru' ? 'Ожидаются' : 'Expected'; precipSt.className = 'ws-metric-extra ws-danger'; }
+  }
+
+  setT('ws-clouds', d.clouds + '%');
+  const cloudBar = document.getElementById('ws-clouds-bar');
+  if (cloudBar) {
+    cloudBar.style.width = d.clouds + '%';
+    cloudBar.style.background = d.clouds > 60 ? 'var(--text-muted)' : 'var(--accent)';
+  }
+
+  setT('ws-kindex', 'Kp ' + d.kp);
+  const kpSt = document.getElementById('ws-kindex-status');
+  if (kpSt) {
+    if (d.kp <= 2) { kpSt.textContent = lang === 'ru' ? 'Тихо' : 'Quiet'; kpSt.className = 'ws-metric-extra ws-good'; }
+    else if (d.kp <= 4) { kpSt.textContent = lang === 'ru' ? 'Неустойчиво' : 'Unsettled'; kpSt.className = 'ws-metric-extra ws-warn'; }
+    else { kpSt.textContent = lang === 'ru' ? 'Шторм' : 'Storm'; kpSt.className = 'ws-metric-extra ws-danger'; }
+  }
+
+  // Hourly Forecast
+  const hourlyBox = document.getElementById('ws-hourly-scroll');
+  if (hourlyBox && d.hourly) {
+    const nowH = new Date().getHours();
+    hourlyBox.innerHTML = d.hourly.map(h => {
+      const isNow = currentWeatherTab === 'today' && h.h === nowH;
+      return `<div class="ws-hour-card ${isNow ? 'ws-hour-now' : ''}">
+        <div class="ws-hour-time">${String(h.h).padStart(2, '0')}:00</div>
+        <div class="ws-hour-icon">${h.icon}</div>
+        <div class="ws-hour-temp">${h.t > 0 ? '+' : ''}${h.t}°</div>
+        <div class="ws-hour-wind">${h.w} ${ms}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Updated timestamp
+  const upd = document.getElementById('ws-updated');
+  if (upd) {
+    const now = new Date();
+    upd.textContent = (lang === 'ru' ? 'Обновлено: ' : 'Updated: ') + now.toLocaleTimeString(lang === 'ru' ? 'ru-RU' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
+function refreshWeatherData() {
+  const btn = document.querySelector('.ws-refresh-btn');
+  if (btn) {
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 600);
+  }
+  // Simulate slight randomization for feel
+  const tabs = ['today', 'tomorrow', 'day2'];
+  tabs.forEach(t => {
+    const d = weatherForecastData[t];
+    d.temp += Math.round((Math.random() - 0.5) * 2);
+    d.wind = Math.round((d.wind + (Math.random() - 0.5) * 1.5) * 10) / 10;
+    d.humidity = Math.max(10, Math.min(95, d.humidity + Math.round((Math.random() - 0.5) * 6)));
+    d.aqi = Math.max(10, Math.min(150, d.aqi + Math.round((Math.random() - 0.5) * 10)));
+    d.precip = Math.max(0, Math.min(100, d.precip + Math.round((Math.random() - 0.5) * 8)));
+    d.clouds = Math.max(0, Math.min(100, d.clouds + Math.round((Math.random() - 0.5) * 10)));
+  });
+  renderWeatherSidebar();
+  showToast(currentLanguage === 'ru' ? 'Погода обновлена' : 'Weather updated');
+}
+
+// Keep backward compatibility for the old function name
+function updateWeatherWidgetUI() {
+  renderWeatherSidebar();
+}
+
+// ── COURSES LISTINGS & SEQUENCE CHECKS ──
+function renderHomeCourses() {
+  const list = document.getElementById('home-courses-list');
+  const items = allCourses.slice(0, 4);
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state"><span class="empty-state-icon">📚</span><p>Курсы скоро появятся</p></div>';
+    return;
+  }
+  list.innerHTML = items.map(c => `
+    <div class="course-card" onclick="openCourse(${c.id})">
+      <div class="course-icon" style="background:${c.color}22">${courseEmoji(c.iconType)}</div>
+      <div class="course-info">
+        <div class="course-level" style="color:${c.color}">${levelLabel(c.iconType, currentLanguage)}</div>
+        <h3 class="course-title" style="margin:4px 0 8px 0; font-size:1.15rem; font-weight:700">${esc(c.title)}</h3>
+        <p class="course-desc" style="font-size:0.88rem; color:var(--text-muted); line-height:1.5">${esc(c.description)}</p>
+      </div>
+      <span class="course-steps-count" style="background:var(--border); border-radius:20px; padding:4px 12px; font-size:0.75rem; color:var(--text-muted)">${c.steps?.length || 0} ${currentLanguage === 'ru' ? 'шагов' : currentLanguage === 'uz' ? 'qadam' : 'steps'}</span>
+    </div>`).join('');
+}
+
+async function loadPublicCourses() {
+  const list = document.getElementById('courses-list');
+  const token = localStorage.getItem('skycheck_token');
+  const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+  
+  try {
+    const data = await fetch(`${API}/courses`, { headers }).then(r => r.json());
     allCourses = Array.isArray(data) ? data : [];
     renderCoursesList();
-  } catch { document.getElementById('courses-list').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Ошибка загрузки</p></div>'; }
+  } catch {
+    list.innerHTML = '<div class="empty-state"><span class="empty-state-icon">⚠️</span><p>Ошибка загрузки академии</p></div>';
+  }
 }
 
 function renderCoursesList() {
   const list = document.getElementById('courses-list');
-  if (!allCourses.length) { list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📚</div><p>Курсы скоро появятся</p></div>'; return; }
-  list.innerHTML = allCourses.map(c => `
-    <div class="course-card" onclick="openCourse(${c.id})">
-      <div class="course-icon" style="background:${c.color}22">${courseEmoji(c.iconType)}</div>
-      <div class="course-info">
-        <div class="course-title">${escHtml(c.title)}</div>
-        <div class="course-desc">${escHtml(c.description)}</div>
-      </div>
-      <span class="course-steps-badge">${c.steps?.length||0} шагов</span>
-    </div>`).join('');
+  if (!allCourses.length) {
+    list.innerHTML = '<div class="empty-state"><span class="empty-state-icon">📚</span><p>Учебные материалы наполняются</p></div>';
+    return;
+  }
+  list.innerHTML = allCourses.map(c => {
+    const isLocked = c.isLocked;
+    return `
+      <div class="course-card ${isLocked ? 'locked-course' : ''}" onclick="${isLocked ? `alert('${currentLanguage==='ru'?'Этот курс заблокирован! Пройдите предыдущий курс.':'Kurs yopiq. Avvalgisini tugating.'}')` : `openCourse(${c.id})`}" style="opacity:${isLocked ? '0.5' : '1'}; position:relative">
+        <div class="course-icon" style="background:${c.color}22">${courseEmoji(c.iconType)}</div>
+        <div class="course-info">
+          <div class="course-level" style="color:${c.color}">${levelLabel(c.iconType, currentLanguage)}</div>
+          <h3 class="course-title" style="margin:4px 0 8px 0; font-size:1.15rem; font-weight:700">${esc(c.title)}</h3>
+          <p class="course-desc" style="font-size:0.88rem; color:var(--text-muted); line-height:1.5">${esc(c.description)}</p>
+        </div>
+        ${isLocked 
+          ? `<span style="font-size:1.3rem; margin-right:12px">🔒</span>` 
+          : `<span class="course-steps-count" style="background:var(--border); border-radius:20px; padding:4px 12px; font-size:0.75rem; color:var(--text-muted)">${c.steps?.length || 0} ${currentLanguage === 'ru' ? 'шагов' : currentLanguage === 'uz' ? 'qadam' : 'steps'}</span>`}
+      </div>`;
+  }).join('');
 }
 
 function showCoursesList() {
@@ -388,119 +1826,1433 @@ function showCoursesList() {
 
 function openCourse(id) {
   showPage('courses');
-  const c = allCourses.find(x=>x.id===id);
+  const c = allCourses.find(x => x.id === id);
   if (!c || !c.steps?.length) return;
-  currentCourse = c; currentStepIdx = 0;
+  
+  currentCourse = c;
+  currentStepIdx = 0;
+  
   document.getElementById('courses-list-view').style.display = 'none';
   document.getElementById('course-viewer-view').style.display = 'block';
   document.getElementById('viewer-title').textContent = c.title;
   document.getElementById('viewer-desc').textContent = c.description;
+  
   renderStepsNav();
   renderStep();
 }
 
 function renderStepsNav() {
   const nav = document.getElementById('steps-nav');
-  nav.innerHTML = currentCourse.steps.map((s,i) => `
-    <button class="step-btn ${i===currentStepIdx?'active':''}" onclick="goToStep(${i})">
-      ${i+1}. ${escHtml(s.title.substring(0,20))}
+  nav.innerHTML = currentCourse.steps.map((s, idx) => `
+    <button class="step-btn ${idx === currentStepIdx ? 'active' : ''}" onclick="goToStep(${idx})">
+      ${idx + 1}. ${esc(s.title.substring(0, 18))}
     </button>`).join('');
 }
 
 function renderStep() {
   const step = currentCourse.steps[currentStepIdx];
   const box = document.getElementById('step-content');
-  const typeLabel = { text:'📄 Текст', video:'🎬 Видео', quiz:'📝 Тест' };
-  const typeClass = { text:'step-type-text', video:'step-type-video', quiz:'step-type-quiz' };
+  
+  // Clear any existing timers and state
+  if (stepTimer) { clearInterval(stepTimer); stepTimer = null; }
+  timeSpentSeconds = 0;
+  isScrollCompleted = false;
+  quizQuestions = [];
+  quizSelectedAnswers = {};
+  
+  const types = { text: '📄 Text', video: '🎬 Video', quiz: '📝 Quiz' };
+  const cls = { text: 'step-type-text', video: 'step-type-video', quiz: 'step-type-quiz' };
+  
   let body = '';
-  if (step.type === 'text') body = `<div class="step-text">${escHtml(step.content||'')}</div>`;
-  else if (step.type === 'video') {
-    const url = getYouTubeEmbed(step.content||'');
-    body = url ? `<iframe class="video-embed" src="${url}" allowfullscreen></iframe>` : `<p style="color:var(--text-muted)">URL видео: ${escHtml(step.content||'')}</p>`;
-  } else if (step.type === 'quiz') {
-    const qs = step.questions||[];
-    body = qs.map((q,qi) => `
-      <div style="margin-bottom:32px">
-        <div class="quiz-question">${qi+1}. ${escHtml(q.question)}</div>
-        <div class="quiz-options">
-          ${(q.options||[]).map((opt,oi) => `<div class="quiz-option" onclick="answerQuiz(this,${qi},${oi},${q.answer})">${escHtml(opt)}</div>`).join('')}
-        </div>
-        <div id="quiz-result-${qi}"></div>
-      </div>`).join('');
+  if (step.type === 'text') {
+    body = `<div class="step-text" style="font-size:1.05rem; line-height:1.75">${esc(step.content || '')}</div>`;
+  } else if (step.type === 'video') {
+    const url = getYouTubeEmbed(step.content || '');
+    body = url 
+      ? `<iframe class="video-embed" src="${url}" allowfullscreen style="width:100%; height:400px; border-radius:8px; border:1px solid var(--border)"></iframe>` 
+      : `<p style="color:var(--text-muted)">Video URL: ${esc(step.content || '')}</p>`;
   }
-  box.innerHTML = `
-    <span class="step-type-badge ${typeClass[step.type]}">${typeLabel[step.type]}</span>
-    <h2 class="step-title">${escHtml(step.title)}</h2>
-    ${body}`;
+  
+  const isCompleted = step.userProgress?.status === 'completed';
+  
+  if (step.type !== 'quiz') {
+    box.innerHTML = `<span class="step-type-badge ${cls[step.type]}" style="position:absolute; top:20px; right:20px; font-size:0.75rem; padding:4px 10px; border-radius:12px; background:var(--border)">${types[step.type]}</span>
+                     <h2 class="step-title" style="margin-bottom:20px; font-weight:800; font-size:1.6rem">${esc(step.title)}</h2>
+                     ${body}`;
+    startStepSession(step.id, step.type, isCompleted);
+  } else {
+    loadQuizData(step.id, isCompleted);
+  }
+  
   document.getElementById('prev-step-btn').disabled = currentStepIdx === 0;
-  document.getElementById('next-step-btn').textContent = currentStepIdx === currentCourse.steps.length-1 ? '✅ Завершить' : 'Далее →';
+  document.getElementById('next-step-btn').disabled = !isCompleted;
+  document.getElementById('next-step-btn').textContent = currentStepIdx === currentCourse.steps.length - 1 
+    ? (currentLanguage === 'ru' ? '✅ Завершить' : currentLanguage === 'uz' ? 'Yakunlash' : 'Finish')
+    : (currentLanguage === 'ru' ? 'Далее →' : currentLanguage === 'uz' ? 'Keyingisi' : 'Next');
+  
   renderStepsNav();
 }
 
-function answerQuiz(el, qi, oi, correct) {
-  const opts = el.parentElement.querySelectorAll('.quiz-option');
-  opts.forEach(o => o.style.pointerEvents='none');
-  el.classList.add(oi===correct?'correct':'wrong');
-  opts[correct].classList.add('correct');
-  const res = document.getElementById('quiz-result-'+qi);
-  res.innerHTML = `<div class="quiz-result ${oi===correct?'pass':'fail'}">${oi===correct?'✅ Правильно!':'❌ Неверно. Правильный ответ выделен.'}</div>`;
+function goToStep(i) {
+  currentStepIdx = i;
+  renderStep();
 }
 
-function goToStep(i) { currentStepIdx=i; renderStep(); }
-function prevStep() { if(currentStepIdx>0){currentStepIdx--;renderStep();} }
-function nextStep() {
-  if(currentStepIdx<currentCourse.steps.length-1){currentStepIdx++;renderStep();}
-  else showCoursesList();
+function prevStep() {
+  if (currentStepIdx > 0) {
+    currentStepIdx--;
+    renderStep();
+  }
 }
 
-// ── MAP ──
-function initPublicMap() {
-  if (!window.google) { document.getElementById('public-map').innerHTML = '<div class="empty-state" style="height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column"><div class="empty-state-icon">🗺</div><p>Для карты нужен Google Maps API ключ</p></div>'; return; }
-  publicMap = new google.maps.Map(document.getElementById('public-map'), {
-    center: {lat:41.3111,lng:69.2406}, zoom: 12,
-    styles: darkMapStyle(), disableDefaultUI: false,
-    mapTypeControl: false, streetViewControl: false
+async function nextStep() {
+  const step = currentCourse.steps[currentStepIdx];
+  const isCompleted = step.userProgress?.status === 'completed';
+  
+  if (!isCompleted && step.type !== 'quiz') {
+    const token = localStorage.getItem('skycheck_token');
+    if (!token) {
+      showToast(currentLanguage === 'ru' ? 'Войдите, чтобы сохранить прогресс' : 'Tizimga kiring', 'error');
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API}/courses/steps/${step.id}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({
+          scrollCompleted: step.type === 'text' ? isScrollCompleted : true,
+          timeSpentSeconds: timeSpentSeconds
+        })
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        showToast(d.error || 'Ошибка завершения урока', 'error');
+        return;
+      }
+      
+      showToast(currentLanguage === 'ru' ? 'Урок пройден! +50 XP' : 'Dars tugatildi! +50 XP');
+      step.userProgress = { status: 'completed' };
+      await loadUserProfileData();
+    } catch (err) {
+      showToast('Ошибка соединения с сервером', 'error');
+      return;
+    }
+  }
+  
+  if (currentStepIdx < currentCourse.steps.length - 1) {
+    currentStepIdx++;
+    renderStep();
+  } else {
+    completeCourse();
+  }
+}
+
+async function startStepSession(stepId, type, isAlreadyCompleted) {
+  const token = localStorage.getItem('skycheck_token');
+  if (!token) return;
+  
+  try {
+    const res = await fetch(`${API}/courses/steps/${stepId}/start`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    const d = await res.json();
+    if (!res.ok) {
+      showToast(d.error || 'Ошибка запуска шага', 'error');
+      return;
+    }
+    
+    currentEstimatedTime = type === 'text' ? d.estimatedReadTimeSeconds : (d.videoDurationSeconds || 0);
+    renderStepProgressIndicator(type, isAlreadyCompleted);
+    
+    // Scroll checking hook on window scroll if it's text
+    if (type === 'text' && !isAlreadyCompleted) {
+      window.addEventListener('scroll', checkTextScroll);
+      checkTextScroll(); // Initial check
+    }
+    
+    stepTimer = setInterval(() => {
+      timeSpentSeconds++;
+      if (type === 'text') {
+        checkTextScroll();
+      }
+      
+      updateStepProgressIndicator(type, isAlreadyCompleted);
+      
+      const timeCondition = timeSpentSeconds >= currentEstimatedTime;
+      const scrollCondition = type === 'text' ? isScrollCompleted : true;
+      
+      if (timeCondition && scrollCondition && !isAlreadyCompleted) {
+        document.getElementById('next-step-btn').disabled = false;
+      }
+    }, 1000);
+  } catch (err) {
+    console.error('Error starting step session:', err);
+  }
+}
+
+function checkTextScroll() {
+  if (isScrollCompleted) return;
+  const docHeight = document.documentElement.scrollHeight;
+  const winHeight = window.innerHeight;
+  const scrollY = window.scrollY || window.pageYOffset;
+  const maxScroll = docHeight - winHeight;
+  
+  if (maxScroll < 50 || scrollY >= maxScroll - 50) {
+    isScrollCompleted = true;
+    window.removeEventListener('scroll', checkTextScroll);
+  }
+}
+
+async function loadQuizData(stepId, isAlreadyCompleted) {
+  const token = localStorage.getItem('skycheck_token');
+  if (!token) return;
+  
+  const box = document.getElementById('step-content');
+  box.innerHTML = `<div class="loading"><div class="spinner"></div><span>Загрузка вопросов...</span></div>`;
+  
+  try {
+    const res = await fetch(`${API}/courses/steps/${stepId}/quiz`, {
+      headers: {
+        'Authorization': 'Bearer ' + token
+      }
+    });
+    const d = await res.json();
+    
+    if (!res.ok) {
+      box.innerHTML = `
+        <div style="text-align:center; padding:40px 20px">
+          <div style="font-size:3rem; margin-bottom:16px">🔒</div>
+          <h3 style="color:var(--danger); margin-bottom:12px">Доступ ограничен</h3>
+          <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.6; max-width:400px; margin:0 auto">${esc(d.error)}</p>
+        </div>
+      `;
+      return;
+    }
+    
+    quizQuestions = d.questions || [];
+    renderQuizForm(stepId, isAlreadyCompleted);
+  } catch (err) {
+    box.innerHTML = `<p style="color:var(--danger)">Ошибка загрузки теста</p>`;
+  }
+}
+
+function renderQuizForm(stepId, isAlreadyCompleted) {
+  const box = document.getElementById('step-content');
+  
+  // Inject selected style dynamically if not exists
+  const styleId = 'quiz-selected-style';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.innerHTML = `
+      .quiz-option.selected {
+        border-color: #0066FF !important;
+        background: rgba(0, 102, 255, 0.1) !important;
+        font-weight: bold;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  const questionsBody = quizQuestions.map((q, qi) => `
+    <div style="margin-bottom:36px; background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:20px; border-radius:12px">
+      <div class="quiz-question" style="font-weight:700; font-size:1.1rem; margin-bottom:16px">${qi + 1}. ${esc(q.question)}</div>
+      <div class="quiz-options" style="display:flex; flex-direction:column; gap:12px">
+        ${(q.options || []).map((opt, oi) => `
+          <div class="quiz-option" id="q-opt-${qi}-${oi}" onclick="selectQuizOption(${qi}, '${esc(opt)}')" style="border:1px solid var(--border); border-radius:8px; padding:14px; cursor:pointer; transition:all 0.2s">
+            ${esc(opt)}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+  
+  box.innerHTML = `
+    <span class="step-type-badge step-type-quiz" style="position:absolute; top:20px; right:20px; font-size:0.75rem; padding:4px 10px; border-radius:12px; background:var(--border)">📝 Quiz</span>
+    <h2 class="step-title" style="margin-bottom:20px; font-weight:800; font-size:1.6rem">${esc(currentCourse.steps[currentStepIdx].title)}</h2>
+    <div id="quiz-alert-box" style="margin-bottom:20px"></div>
+    <div>${questionsBody}</div>
+    ${!isAlreadyCompleted ? `
+      <div style="margin-top:24px; text-align:center">
+        <button class="btn btn-primary" id="btn-submit-quiz" onclick="submitQuizAnswers(${stepId})" style="width:200px; justify-content:center">Сдать тест</button>
+      </div>
+    ` : '<p style="color:var(--success); font-weight:bold; text-align:center">Тест уже успешно сдан!</p>'}
+  `;
+}
+
+function selectQuizOption(questionIdx, optionText) {
+  const options = quizQuestions[questionIdx].options;
+  options.forEach((_, oi) => {
+    const el = document.getElementById(`q-opt-${questionIdx}-${oi}`);
+    if (el) el.classList.remove('selected');
   });
-  allZones.forEach(z => drawZoneOnMap(z, publicMap));
-  if (!allZones.length) { fetch(`${API}/zones`).then(r=>r.json()).then(zones=>{ allZones=zones; zones.forEach(z=>drawZoneOnMap(z,publicMap)); }); }
+  
+  const selectedIdx = options.indexOf(optionText);
+  const selectedEl = document.getElementById(`q-opt-${questionIdx}-${selectedIdx}`);
+  if (selectedEl) selectedEl.classList.add('selected');
+  
+  quizSelectedAnswers[questionIdx] = optionText;
 }
 
-function drawZoneOnMap(zone, map) {
-  const colors = { RED:'#EF4444', YELLOW:'#F59E0B', GREEN:'#10B981' };
-  const color = colors[zone.type]||'#6B7280';
-  let coords = zone.coordinates;
-  if (typeof coords==='string') try{coords=JSON.parse(coords);}catch(e){}
-  if (!Array.isArray(coords)) return;
-  const paths = coords.map(p => Array.isArray(p) ? {lat:p[1],lng:p[0]} : {lat:p.lat,lng:p.lng});
-  const poly = new google.maps.Polygon({ paths, strokeColor:color, strokeOpacity:0.9, strokeWeight:2, fillColor:color, fillOpacity:0.25, map });
-  poly.addListener('click', () => showZonePopup(zone));
+async function submitQuizAnswers(stepId) {
+  const token = localStorage.getItem('skycheck_token');
+  if (!token) return;
+  
+  const answeredCount = Object.keys(quizSelectedAnswers).length;
+  if (answeredCount < quizQuestions.length) {
+    alert('Пожалуйста, ответьте на все вопросы теста!');
+    return;
+  }
+  
+  const answersPayload = quizQuestions.map((q, qi) => ({
+    question: q.question,
+    selectedOption: quizSelectedAnswers[qi]
+  }));
+  
+  const submitBtn = document.getElementById('btn-submit-quiz');
+  if (submitBtn) submitBtn.disabled = true;
+  
+  try {
+    const res = await fetch(`${API}/courses/steps/${stepId}/quiz-submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ answers: answersPayload })
+    });
+    const d = await res.json();
+    
+    if (!res.ok) {
+      showToast(d.error || 'Ошибка отправки теста', 'error');
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+    
+    const alertBox = document.getElementById('quiz-alert-box');
+    if (d.success) {
+      alertBox.innerHTML = `
+        <div style="background:rgba(16,185,129,0.15); border:1px solid #10B981; color:#10B981; padding:16px; border-radius:8px; font-weight:bold; margin-bottom:20px">
+          🎉 Тест успешно сдан! Ваш результат: ${d.score.toFixed(1)}% (Верно ${d.correctCount} из ${d.totalCount}). Получено +${d.expGained} XP.
+        </div>
+      `;
+      document.getElementById('next-step-btn').disabled = false;
+      currentCourse.steps[currentStepIdx].userProgress = { status: 'completed' };
+      if (submitBtn) submitBtn.style.display = 'none';
+      await loadUserProfileData();
+    } else {
+      let cooldownText = '';
+      if (d.cooldownUntil) {
+        const mins = Math.ceil((new Date(d.cooldownUntil).getTime() - Date.now()) / 1000 / 60);
+        cooldownText = `<br>Следующая попытка будет доступна через ${mins} мин.`;
+      }
+      alertBox.innerHTML = `
+        <div style="background:rgba(239,68,68,0.15); border:1px solid #EF4444; color:#EF4444; padding:16px; border-radius:8px; font-weight:bold; margin-bottom:20px">
+          ❌ Тест не сдан. Ваш результат: ${d.score.toFixed(1)}% (Верно ${d.correctCount} из ${d.totalCount}). Требуется для сдачи: ${currentCourse.steps[currentStepIdx].isFinalExam ? '95%' : '80%'}.${cooldownText}
+        </div>
+      `;
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  } catch (err) {
+    showToast('Ошибка соединения с сервером', 'error');
+    if (submitBtn) submitBtn.disabled = false;
+  }
 }
 
-function showZonePopup(zone) {
-  document.getElementById('popup-name').textContent = zone.name;
-  document.getElementById('popup-alt').textContent = zone.maxAltitude;
-  const typeEl = document.getElementById('popup-type');
-  typeEl.textContent = zone.type;
-  typeEl.className = 'zone-type-badge zone-' + zone.type.toLowerCase();
-  document.getElementById('zone-popup').style.display = 'flex';
+function renderStepProgressIndicator(type, isAlreadyCompleted) {
+  const box = document.getElementById('step-content');
+  let panel = document.getElementById('step-progress-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'step-progress-panel';
+    panel.style.background = 'rgba(0,102,255,0.08)';
+    panel.style.border = '1px solid rgba(0,102,255,0.2)';
+    panel.style.padding = '12px 16px';
+    panel.style.borderRadius = '8px';
+    panel.style.marginBottom = '20px';
+    panel.style.display = 'flex';
+    panel.style.justifyContent = 'space-between';
+    panel.style.alignItems = 'center';
+    panel.style.fontSize = '0.9rem';
+    
+    const titleEl = box.querySelector('.step-title');
+    if (titleEl && titleEl.nextSibling) {
+      box.insertBefore(panel, titleEl.nextSibling);
+    } else {
+      box.prepend(panel);
+    }
+  }
+  updateStepProgressIndicator(type, isAlreadyCompleted);
 }
-function closeZonePopup() { document.getElementById('zone-popup').style.display = 'none'; }
+
+function updateStepProgressIndicator(type, isAlreadyCompleted) {
+  const panel = document.getElementById('step-progress-panel');
+  if (!panel) return;
+  
+  if (isAlreadyCompleted) {
+    panel.innerHTML = `
+      <div style="color:#10B981; font-weight:bold">✅ Урок уже пройден</div>
+      <div style="color:var(--text-muted)">Вы можете повторно изучить материал</div>
+    `;
+    return;
+  }
+  
+  const remaining = Math.max(0, currentEstimatedTime - timeSpentSeconds);
+  const timeText = remaining > 0 
+    ? `Осталось времени: ${remaining} сек` 
+    : `⏱️ Время вышло (пройдено ${timeSpentSeconds} сек)`;
+    
+  const scrollText = type === 'text' 
+    ? `Прокрутка: ${isScrollCompleted ? '✅ Да' : '❌ Нет'}` 
+    : '';
+    
+  panel.innerHTML = `
+    <div style="font-weight:600; color:var(--text)">${timeText}</div>
+    <div style="font-weight:600; color:var(--text)">${scrollText}</div>
+  `;
+}
+
+// ── COURSE COMPLETION & CUSTOM SVG GENERATOR ──
+function completeCourse() {
+  if (!currentUser) {
+    showToast(currentLanguage === 'ru' ? 'Войдите в профиль, чтобы завершить обучение' : 'Kirish kerak', 'error');
+    showCoursesList();
+    return;
+  }
+  document.getElementById('cert-student-name').value = currentUser.name || '';
+  document.getElementById('cert-name-modal').style.display = 'flex';
+}
+
+function closeCertNameModal() {
+  document.getElementById('cert-name-modal').style.display = 'none';
+  showCoursesList();
+}
+
+async function generateAndDownloadCert() {
+  const studentName = document.getElementById('cert-student-name').value.trim();
+  if (!studentName) return alert('Введите имя пилота');
+  
+  const token = localStorage.getItem('skycheck_token');
+  try {
+    const res = await fetch(`${API}/courses/${currentCourse.id}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ studentName })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Failed completion');
+    
+    document.getElementById('cert-name-modal').style.display = 'none';
+    downloadSVGCertificate(studentName, currentCourse.title);
+    
+    showToast(currentLanguage === 'ru' ? 'Курс завершен! Скачиваем сертификат...' : 'Sertifikat yuklanmoqda...');
+    showCoursesList();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+function downloadSVGCertificate(studentName, courseTitle) {
+  const dateStr = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  const certId = 'SC-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  
+  // Vector certificate markup builder
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="800" height="600">
+      <defs>
+        <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#0f172a" />
+          <stop offset="100%" stop-color="#030712" />
+        </radialGradient>
+        <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#fbbf24" />
+          <stop offset="50%" stop-color="#f59e0b" />
+          <stop offset="100%" stop-color="#d97706" />
+        </linearGradient>
+      </defs>
+      
+      <!-- BG -->
+      <rect width="800" height="600" fill="url(#bgGrad)" />
+      
+      <!-- Border -->
+      <rect x="25" y="25" width="750" height="550" fill="none" stroke="url(#gold)" stroke-width="4" rx="16" />
+      <rect x="35" y="35" width="730" height="530" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1" rx="12" />
+      
+      <!-- Ornaments -->
+      <circle cx="25" cy="25" r="10" fill="url(#gold)" />
+      <circle cx="775" cy="25" r="10" fill="url(#gold)" />
+      <circle cx="25" cy="575" r="10" fill="url(#gold)" />
+      <circle cx="775" cy="575" r="10" fill="url(#gold)" />
+      
+      <!-- Header -->
+      <text x="400" y="110" font-family="'Outfit', sans-serif" font-size="36" font-weight="900" fill="url(#gold)" text-anchor="middle" letter-spacing="4">S K Y C H E C K</text>
+      <text x="400" y="145" font-family="'Inter', sans-serif" font-size="14" font-weight="600" fill="#9ca3af" text-anchor="middle" letter-spacing="2">СЕРТИФИКАТ ПИЛОТА БПЛА</text>
+      
+      <!-- Line -->
+      <line x1="200" y1="180" x2="600" y2="180" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+      
+      <!-- Body Text -->
+      <text x="400" y="230" font-family="'Inter', sans-serif" font-size="16" fill="#9ca3af" text-anchor="middle">Настоящим подтверждается, что</text>
+      <text x="400" y="290" font-family="'Inter', sans-serif" font-size="32" font-weight="800" fill="#f9fafb" text-anchor="middle">${studentName}</text>
+      
+      <text x="400" y="340" font-family="'Inter', sans-serif" font-size="16" fill="#9ca3af" text-anchor="middle">успешно прошел полный курс обучения по программе:</text>
+      <text x="400" y="390" font-family="'Inter', sans-serif" font-size="22" font-weight="700" fill="url(#gold)" text-anchor="middle">${courseTitle}</text>
+      
+      <!-- Footer details -->
+      <text x="150" y="490" font-family="'Inter', sans-serif" font-size="12" fill="#6b7280" text-anchor="middle">Дата выдачи</text>
+      <text x="150" y="520" font-family="'Inter', sans-serif" font-size="14" font-weight="600" fill="#9ca3af" text-anchor="middle">${dateStr}</text>
+      
+      <text x="650" y="490" font-family="'Inter', sans-serif" font-size="12" fill="#6b7280" text-anchor="middle">ID Сертификата</text>
+      <text x="650" y="520" font-family="'Inter', sans-serif" font-size="14" font-weight="600" fill="url(#gold)" text-anchor="middle">${certId}</text>
+      
+      <!-- Seal -->
+      <g transform="translate(400, 490) scale(0.7)">
+        <circle cx="0" cy="0" r="50" fill="none" stroke="url(#gold)" stroke-width="2" />
+        <circle cx="0" cy="0" r="44" fill="none" stroke="url(#gold)" stroke-width="1" stroke-dasharray="4,4" />
+        <path d="M-20,-10 L0,25 L20,-10" fill="none" stroke="url(#gold)" stroke-width="2" stroke-linejoin="round" />
+        <path d="M-10,-20 L0,25 L10,-20" fill="none" stroke="url(#gold)" stroke-width="2" stroke-linejoin="round" />
+        <circle cx="0" cy="0" r="10" fill="url(#gold)" />
+      </g>
+    </svg>`;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `SkyCheck_Certificate_${studentName.replace(/\s+/g, '_')}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── SHOP CATALOG & PRODUCT DISPLAY ──
+let allProducts = [];
+let selectedProduct = null;
+
+async function loadProductsCatalog() {
+  const grid = document.getElementById('shop-products-grid');
+  try {
+    const res = await fetch(`${API}/products`).then(r => r.json());
+    allProducts = Array.isArray(res) ? res : [];
+    
+    if (!allProducts.length) {
+      grid.innerHTML = '<div class="empty-state"><span class="empty-state-icon">🛒</span><p>Товары распроданы</p></div>';
+      return;
+    }
+
+    grid.innerHTML = allProducts.map(p => {
+      const hasStock = p.stock > 0;
+      const badgeClass = hasStock ? 'badge-green' : 'badge-red';
+      const badgeText = hasStock ? `${p.stock} шт` : (currentLanguage==='ru'?'Распродано':'Sotib bo\'lingan');
+      
+      return `
+        <div class="product-card" onclick="openProductDetail(${p.id})">
+          <div style="height:200px; padding:16px; background:#111; display:flex; align-items:center; justify-content:center">
+            ${p.imageUrl ? `<img src="${p.imageUrl}" style="max-height:100%; max-width:100%; object-fit:contain" onerror="this.style.display='none'">` : '<span style="font-size:3rem">🛒</span>'}
+          </div>
+          <div style="padding:20px; display:flex; flex-direction:column; gap:10px">
+            <h3 style="font-size:1.1rem; font-weight:700; margin:0">${esc(p.title)}</h3>
+            <span class="badge ${badgeClass}" style="width:fit-content">${badgeText}</span>
+            <div class="product-footer" style="display:flex; justify-content:space-between; align-items:center; margin-top:10px">
+              <strong style="color:var(--blue); font-size:1.25rem">$${p.price.toFixed(2)}</strong>
+              ${hasStock ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); addToCart(${p.id})" data-i18n="shop_add_cart">Купить</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  } catch {
+    grid.innerHTML = '<div class="empty-state"><span class="empty-state-icon">⚠️</span><p>Ошибка подключения к магазину</p></div>';
+  }
+}
+
+function showProductsCatalog() {
+  document.getElementById('shop-products-grid').parentElement.style.display = 'block';
+  document.getElementById('product-detail-view').style.display = 'none';
+}
+
+async function openProductDetail(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  selectedProduct = p;
+
+  document.getElementById('shop-products-grid').parentElement.style.display = 'none';
+  document.getElementById('product-detail-view').style.display = 'block';
+  
+  document.getElementById('pd-title').textContent = p.title;
+  document.getElementById('pd-price').textContent = `$${p.price.toFixed(2)}`;
+  document.getElementById('pd-desc').textContent = p.description || 'Описание товара отсутствует.';
+  
+  const badge = document.getElementById('pd-stock-badge');
+  const hasStock = p.stock > 0;
+  badge.className = `badge ${hasStock ? 'badge-green' : 'badge-red'}`;
+  badge.textContent = hasStock ? `${p.stock} ${currentLanguage==='ru'?'шт в наличии':currentLanguage==='uz'?'ta mavjud':'in stock'}` : (currentLanguage==='ru'?'Нет в наличии':'Sotuvda yo\'q');
+  
+  document.getElementById('pd-buy-btn').style.display = hasStock ? 'block' : 'none';
+  document.getElementById('pd-main-img').src = p.imageUrl || '';
+  
+  // Render carousel thumbs
+  const thumbs = document.getElementById('pd-carousel-thumbs');
+  const list = [p.imageUrl, ...(p.images || [])].filter(url => url);
+  thumbs.innerHTML = list.map(url => `
+    <img src="${url}" onclick="document.getElementById('pd-main-img').src='${url}'" style="width:60px; height:60px; border:1px solid var(--border); border-radius:4px; object-fit:cover; cursor:pointer">
+  `).join('');
+
+  loadProductReviews(id);
+}
+
+async function loadProductReviews(productId) {
+  const container = document.getElementById('pd-reviews-list');
+  container.innerHTML = '<div class="spinner"></div>';
+  try {
+    const pDetails = await fetch(`${API}/products/${productId}`).then(r => r.json());
+    const reviews = pDetails.reviews || [];
+    if (!reviews.length) {
+      container.innerHTML = '<p style="color:var(--text-dim)">Отзывов пока нет. Будьте первым!</p>';
+      return;
+    }
+    container.innerHTML = reviews.map(r => `
+      <div class="review-card" style="background:rgba(255,255,255,0.02); border:1px solid var(--border); padding:16px; border-radius:8px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+          <strong style="color:var(--text)">${esc(r.user?.name || 'Пилот')}</strong>
+          <span style="color:var(--warning)">${'⭐'.repeat(r.rating)}</span>
+        </div>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin:0; line-height:1.5">${esc(r.comment)}</p>
+        <div style="font-size:0.75rem; color:var(--text-dim); margin-top:8px">${fmtDate(r.createdAt)}</div>
+      </div>
+    `).join('');
+  } catch {
+    container.innerHTML = '<p style="color:var(--danger)">Ошибка загрузки отзывов</p>';
+  }
+}
+
+async function submitProductReview() {
+  const token = localStorage.getItem('skycheck_token');
+  if (!token) return alert('Сначала войдите в систему');
+  
+  const rating = document.getElementById('pr-rating').value;
+  const comment = document.getElementById('pr-comment').value.trim();
+  const formAlert = document.getElementById('pd-review-alert');
+  
+  if (!comment) {
+    formAlert.innerHTML = '<div class="alert alert-error">Заполните отзыв!</div>';
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API}/products/${selectedProduct.id}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ rating, comment })
+    });
+    if (!res.ok) throw new Error('Rating submission failed');
+    
+    document.getElementById('pr-comment').value = '';
+    formAlert.innerHTML = '<div class="alert alert-success">Отзыв успешно добавлен!</div>';
+    loadProductReviews(selectedProduct.id);
+  } catch {
+    formAlert.innerHTML = '<div class="alert alert-error">Ошибка при отправке отзыва</div>';
+  }
+}
+
+function addCurrentProductToCart() {
+  if (selectedProduct) {
+    addToCart(selectedProduct.id);
+  }
+}
+
+// ── CART CONTROLLER ──
+function addToCart(productId) {
+  const p = allProducts.find(x => x.id === productId);
+  if (!p) return;
+  
+  const item = cart.find(i => i.productId === productId);
+  if (item) {
+    if (item.quantity >= p.stock) {
+      showToast(currentLanguage === 'ru' ? 'Превышен остаток на складе' : 'Zaxira tugagan', 'error');
+      return;
+    }
+    item.quantity++;
+  } else {
+    cart.push({ productId, quantity: 1, product: p });
+  }
+  saveCart();
+  updateCartBadge();
+  showToast(currentLanguage === 'ru' ? `Добавлено: ${p.title}` : `Savatga qo'shildi: ${p.title}`);
+}
+
+function saveCart() {
+  localStorage.setItem('skycheck_cart', JSON.stringify(cart));
+}
+function loadCart() {
+  const c = localStorage.getItem('skycheck_cart');
+  if (c) cart = JSON.parse(c);
+  updateCartBadge();
+}
+
+function updateCartBadge() {
+  const badge = document.getElementById('cart-badge');
+  const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleCart(show) {
+  document.getElementById('cart-overlay').style.display = show ? 'flex' : 'none';
+  if (show) renderCartItems();
+}
+
+function renderCartItems() {
+  const container = document.getElementById('cart-items-container');
+  const totalEl = document.getElementById('cart-total-price');
+  
+  if (!cart.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:40px 0"><span class="empty-state-icon">🛒</span><p>Корзина пуста</p></div>';
+    totalEl.textContent = '$0.00';
+    return;
+  }
+  
+  let total = 0;
+  container.innerHTML = cart.map(item => {
+    const sub = item.product.price * item.quantity;
+    total += sub;
+    return `
+      <div class="cart-item" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px">
+        <div style="flex:1">
+          <h4 style="margin:0; font-size:0.95rem; font-weight:700">${esc(item.product.title)}</h4>
+          <span style="color:var(--blue); font-size:0.85rem; font-weight:700">$${item.product.price.toFixed(2)}</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px">
+          <button class="qty-btn" onclick="updateQty(${item.productId}, -1)">-</button>
+          <span style="font-weight:700; min-width:20px; text-align:center">${item.quantity}</span>
+          <button class="qty-btn" onclick="updateQty(${item.productId}, 1)">+</button>
+        </div>
+      </div>`;
+  }).join('');
+  
+  totalEl.textContent = `$${total.toFixed(2)}`;
+}
+
+function updateQty(id, delta) {
+  const item = cart.find(i => i.productId === id);
+  if (!item) return;
+  
+  item.quantity += delta;
+  if (item.quantity <= 0) {
+    cart = cart.filter(i => i.productId !== id);
+  } else {
+    // Check max stock
+    const p = allProducts.find(x => x.id === id);
+    if (p && item.quantity > p.stock) {
+      item.quantity = p.stock;
+      showToast('Превышен остаток на складе', 'error');
+    }
+  }
+  saveCart();
+  updateCartBadge();
+  renderCartItems();
+}
+
+// ── CHECKOUT FLOW & PAYMENT SYSTEM ──
+async function checkout() {
+  if (!currentUser) {
+    toggleCart(false);
+    showPage('login');
+    showToast('Сначала войдите в систему', 'error');
+    return;
+  }
+  if (!cart.length) return;
+  
+  const token = localStorage.getItem('skycheck_token');
+  try {
+    const r = await fetch(`${API}/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ items: cart.map(i => ({ productId: i.productId, quantity: i.quantity })) })
+    });
+    const d = await r.json();
+    if (!r.ok) return showToast(d.error, 'error');
+    
+    cart = [];
+    saveCart();
+    updateCartBadge();
+    toggleCart(false);
+    
+    openPaymentModal(d);
+  } catch {
+    showToast('Ошибка при оформлении заказа', 'error');
+  }
+}
+
+let currentPayOrder = null;
+let selectedPayMethod = null;
+let countdownTimer = null;
+
+function openPaymentModal(order) {
+  currentPayOrder = order;
+  
+  document.getElementById('pay-select-screen').style.display = 'block';
+  document.getElementById('pay-click-screen').style.display = 'none';
+  document.getElementById('pay-sms-screen').style.display = 'none';
+  document.getElementById('pay-success-screen').style.display = 'none';
+  
+  const uzs = Math.round(order.totalAmount * 12600);
+  const formatted = `$${order.totalAmount.toFixed(2)} (${uzs.toLocaleString()} UZS)`;
+  document.getElementById('pay-click-amount').textContent = formatted;
+  
+  document.getElementById('payment-modal').style.display = 'flex';
+}
+
+function cancelPayment() {
+  document.getElementById('payment-modal').style.display = 'none';
+  showToast(currentLanguage === 'ru' ? 'Оплата отменена. Вы можете оплатить заказ в профиле.' : 'To\'lov bekor qilindi.', 'error');
+}
+
+function closePaymentModal() {
+  document.getElementById('payment-modal').style.display = 'none';
+  showPage('profile');
+  switchProfileTab('orders', document.querySelectorAll('.pnav-btn')[1]);
+}
+
+function selectPaymentMethod(method) {
+  selectedPayMethod = method;
+  const provTitle = document.getElementById('pay-provider-title');
+  
+  if (method === 'click') {
+    provTitle.textContent = 'CLICK PAY';
+    provTitle.style.color = '#008ae4';
+  } else if (method === 'payme') {
+    provTitle.textContent = 'PAYME';
+    provTitle.style.color = '#00c0aa';
+  } else if (method === 'uzum') {
+    provTitle.textContent = 'UZUM PAY';
+    provTitle.style.color = '#7c3aed';
+  }
+  
+  document.getElementById('pay-select-screen').style.display = 'none';
+  document.getElementById('pay-click-screen').style.display = 'block';
+}
+
+function backToPaySelect() {
+  document.getElementById('pay-select-screen').style.display = 'block';
+  document.getElementById('pay-click-screen').style.display = 'none';
+}
+
+function formatCardNumber(input) {
+  let v = input.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+  let formatted = '';
+  for (let i = 0; i < v.length; i++) {
+    if (i > 0 && i % 4 === 0) formatted += ' ';
+    formatted += v[i];
+  }
+  input.value = formatted;
+}
+
+function formatCardExpiry(input) {
+  let v = input.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+  if (v.length > 2) {
+    input.value = v.substring(0, 2) + '/' + v.substring(2, 4);
+  } else {
+    input.value = v;
+  }
+}
+
+function sendPaymentOTP() {
+  const card = document.getElementById('pay-card-number').value.replace(/\s+/g, '');
+  const expiry = document.getElementById('pay-card-expiry').value;
+  
+  if (card.length < 16 || expiry.length < 5) {
+    showToast(currentLanguage === 'ru' ? 'Введите корректные реквизиты карты' : 'Karta ma\'lumotlari xato', 'error');
+    return;
+  }
+  
+  document.getElementById('pay-click-screen').style.display = 'none';
+  document.getElementById('pay-sms-screen').style.display = 'block';
+  document.getElementById('pay-sms-code').value = '';
+  document.getElementById('pay-otp-alert').innerHTML = '';
+}
+
+function backToCardInput() {
+  document.getElementById('pay-click-screen').style.display = 'block';
+  document.getElementById('pay-sms-screen').style.display = 'none';
+}
+
+async function confirmPaymentOTP() {
+  const code = document.getElementById('pay-sms-code').value.trim();
+  const token = localStorage.getItem('skycheck_token');
+  
+  if (code !== '1234') {
+    document.getElementById('pay-otp-alert').innerHTML = `<div class="alert alert-error">${currentLanguage==='ru'?'Неверный код! Введите "1234".':'Sms kod xato! "1234" kiriting.'}</div>`;
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API}/orders/${currentPayOrder.id}/pay`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    
+    // Clear and success screens
+    document.getElementById('pay-sms-screen').style.display = 'none';
+    document.getElementById('pay-success-screen').style.display = 'block';
+    
+    // Refresh user profile details
+    await loadUserProfileData();
+  } catch (err) {
+    document.getElementById('pay-otp-alert').innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  }
+}
+
+// ── PROFILE SYSTEM & ORDERS TIMELINES ──
+function switchProfileTab(tab, btn) {
+  document.querySelectorAll('.profile-tab-section').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('.pnav-btn').forEach(b => b.classList.remove('active'));
+  
+  document.getElementById('ptab-' + tab).style.display = 'block';
+  if (btn) btn.classList.add('active');
+}
+
+async function loadUserProfileData() {
+  const token = localStorage.getItem('skycheck_token');
+  if (!token) return;
+  try {
+    const user = await fetch(`${API}/auth/me`, { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json());
+    currentUser = user;
+    localStorage.setItem('skycheck_user', JSON.stringify(user));
+  } catch (e) {
+    console.error('Error syncing user profile:', e);
+  }
+}
+
+function loadProfileData() {
+  if (!currentUser) return;
+  
+  document.getElementById('prof-avatar-placeholder').textContent = currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U';
+  document.getElementById('prof-display-name').textContent = currentUser.name;
+  document.getElementById('prof-display-email').textContent = currentUser.email;
+  
+  // EXP Gauges
+  const nextExp = (currentUser.level) * 100 + (currentUser.level) * (currentUser.level) * 15;
+  document.getElementById('prof-level-badge').textContent = `${currentLanguage==='ru'?'Уровень':'Daraja'}: ${currentUser.level}`;
+  document.getElementById('prof-exp-txt').textContent = `${currentUser.exp} / ${nextExp} XP`;
+  
+  const expPercent = Math.min(100, Math.round((currentUser.exp / nextExp) * 100));
+  document.getElementById('prof-exp-fill').style.width = expPercent + '%';
+
+  // Fill forms
+  document.getElementById('prof-name').value = currentUser.name || '';
+  document.getElementById('prof-email').value = currentUser.email || '';
+  document.getElementById('prof-phone').value = currentUser.phone || '';
+  document.getElementById('prof-language').value = currentUser.language || 'ru';
+
+  loadMyOrdersHistory();
+  renderProfileAchievements();
+  loadCompletedCertificates();
+}
+
+async function saveProfileInfo() {
+  const name = document.getElementById('prof-name').value.trim();
+  const email = document.getElementById('prof-email').value.trim();
+  const phone = document.getElementById('prof-phone').value.trim();
+  const language = document.getElementById('prof-language').value;
+  const token = localStorage.getItem('skycheck_token');
+  const editAlert = document.getElementById('profile-edit-alert');
+  
+  if (!name || !email) {
+    editAlert.innerHTML = '<div class="alert alert-error">Имя и Email обязательны</div>';
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API}/auth/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ name, email, phone, language })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    
+    currentUser = d;
+    localStorage.setItem('skycheck_user', JSON.stringify(d));
+    editAlert.innerHTML = `<div class="alert alert-success">${currentLanguage==='ru'?'Данные успешно сохранены!':'Ma\'lumotlar saqlandi!'}</div>`;
+    
+    // Change lang UI
+    changeLanguage(language);
+    loadProfileData();
+  } catch (err) {
+    editAlert.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  }
+}
+
+async function loadMyOrdersHistory() {
+  const container = document.getElementById('my-orders-list');
+  const token = localStorage.getItem('skycheck_token');
+  container.innerHTML = '<div class="spinner"></div>';
+  
+  try {
+    const orders = await fetch(`${API}/orders/me`, { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json());
+    if (!Array.isArray(orders) || !orders.length) {
+      container.innerHTML = '<div class="empty-state"><span class="empty-state-icon">📦</span><p>' + (currentLanguage === 'ru' ? 'Вы еще не совершали заказов' : 'Buyurtmalar yo\'q') + '</p></div>';
+      return;
+    }
+    
+    const badges = { PENDING: 'badge-yellow', COMPLETED: 'badge-green', CANCELLED: 'badge-red' };
+    
+    container.innerHTML = orders.map(o => {
+      const isPaid = o.status === 'COMPLETED';
+      const isPending = o.status === 'PENDING';
+      
+      const timelineHTML = `
+        <div class="order-timeline" style="display:flex; justify-content:space-between; margin-top:20px; position:relative; padding:10px 0">
+          <div style="position:absolute; top:20px; left:10%; right:10%; height:2px; background:var(--border); z-index:1"></div>
+          <div style="position:absolute; top:20px; left:10%; width:${isPaid ? '80%' : '0%'}; height:2px; background:var(--success); z-index:2; transition:width 0.4s"></div>
+          
+          <div style="z-index:3; text-align:center; width:30%">
+            <div style="width:20px; height:20px; border-radius:50%; background:var(--success); margin:0 auto 6px auto; border:2px solid var(--bg-card)"></div>
+            <span style="font-size:0.75rem; color:var(--text-muted)" data-i18n="order_timeline_created">Создан</span>
+          </div>
+          <div style="z-index:3; text-align:center; width:30%">
+            <div style="width:20px; height:20px; border-radius:50%; background:${isPaid ? 'var(--success)' : 'var(--border)'}; margin:0 auto 6px auto; border:2px solid var(--bg-card)"></div>
+            <span style="font-size:0.75rem; color:${isPaid ? 'var(--success)' : 'var(--text-dim)'}" data-i18n="order_timeline_paid">Оплачен</span>
+          </div>
+          <div style="z-index:3; text-align:center; width:30%">
+            <div style="width:20px; height:20px; border-radius:50%; background:${isPaid ? 'var(--success)' : 'var(--border)'}; margin:0 auto 6px auto; border:2px solid var(--bg-card)"></div>
+            <span style="font-size:0.75rem; color:${isPaid ? 'var(--success)' : 'var(--text-dim)'}" data-i18n="order_timeline_delivered">Доставлен</span>
+          </div>
+        </div>`;
+      
+      return `
+        <div class="order-card" style="background:var(--bg-card); border:1px solid var(--border); padding:24px; border-radius:12px">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:12px; margin-bottom:16px">
+            <div>
+              <strong style="font-size:1.05rem; color:var(--text)">#${o.id}</strong>
+              <span style="color:var(--text-dim); font-size:0.8rem; margin-left:8px">${fmtDate(o.createdAt)}</span>
+            </div>
+            <span class="badge ${badges[o.status] || 'badge-yellow'}">${o.status}</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px">
+            ${o.items.map(item => `
+              <div style="display:flex; justify-content:space-between; font-size:0.9rem">
+                <span style="color:var(--text-muted)">${item.quantity}x ${esc(item.product?.title || 'Товар')}</span>
+                <strong>$${(item.price * item.quantity).toFixed(2)}</strong>
+              </div>
+            `).join('')}
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:12px; margin-top:12px">
+            <span style="color:var(--text-dim); font-size:0.9rem" data-i18n="shop_total">Итого</span>
+            <strong style="color:var(--blue); font-size:1.15rem">$${o.totalAmount.toFixed(2)}</strong>
+          </div>
+          ${timelineHTML}
+          ${isPending ? `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${JSON.stringify(o).replace(/"/g, '&quot;')})" style="margin-top:16px; width:100%; justify-content:center" data-i18n="pay_btn_confirm">Оплатить заказ</button>` : ''}
+        </div>`;
+    }).join('');
+  } catch {
+    container.innerHTML = '<p style="color:var(--danger)">Ошибка загрузки истории заказов.</p>';
+  }
+}
+
+function renderProfileAchievements() {
+  const container = document.getElementById('my-achievements-grid');
+  const unlocked = new Set(currentUser.achievements ? currentUser.achievements.map(a => a.achievementId) : []);
+  
+  container.innerHTML = Object.keys(ACHIEVEMENTS).map(key => {
+    const active = unlocked.has(key);
+    const details = ACHIEVEMENTS[key];
+    const name = currentLanguage === 'ru' ? details.nameRu : currentLanguage === 'uz' ? details.nameUz : details.nameEn;
+    const desc = currentLanguage === 'ru' ? details.descRu : currentLanguage === 'uz' ? details.descUz : details.descEn;
+    
+    return `
+      <div class="achievement-card ${active ? 'unlocked' : 'locked'}" style="opacity:${active ? '1' : '0.4'}; background:var(--bg-card); border:1px solid ${active ? 'var(--blue)' : 'var(--border)'}; border-radius:12px; padding:20px; display:flex; gap:16px; align-items:center; position:relative">
+        <div class="achievement-icon" style="font-size:2.2rem; background:${active ? 'var(--blue-dim)' : 'rgba(0,0,0,0.1)'}; border-radius:50%; width:60px; height:60px; display:flex; align-items:center; justify-content:center">
+          ${key === 'first_steps' ? '🚀' : key === 'theory_master' ? '🎓' : key === 'certified_pilot' ? '🏆' : '👑'}
+        </div>
+        <div>
+          <h4 style="margin:0; font-size:1.05rem; font-weight:700">${esc(name)}</h4>
+          <p style="margin:4px 0 0 0; font-size:0.85rem; color:var(--text-muted); line-height:1.4">${esc(desc)}</p>
+        </div>
+        <span class="badge ${active ? 'badge-green' : 'badge-red'}" style="position:absolute; top:12px; right:12px; font-size:0.68rem; padding:2px 8px">
+          ${active ? (currentLanguage==='ru'?'Открыто':translations[currentLanguage].achievement_unlocked) : (currentLanguage==='ru'?'Закрыто':translations[currentLanguage].achievement_locked)}
+        </span>
+      </div>`;
+  }).join('');
+}
+
+async function loadCompletedCertificates() {
+  const container = document.getElementById('my-certificates-grid');
+  const token = localStorage.getItem('skycheck_token');
+  container.innerHTML = '<div class="spinner"></div>';
+  
+  try {
+    const completions = await fetch(`${API}/courses/completions/me`, { headers: { 'Authorization': 'Bearer ' + token } }).then(r => r.json());
+    if (!Array.isArray(completions) || !completions.length) {
+      container.innerHTML = '<div class="empty-state" style="grid-column:1/-1; padding:30px 0"><span class="empty-state-icon">🎓</span><p>' + (currentLanguage==='ru'?'Сертификаты отсутствуют. Завершите курсы обучения.':'Sertifikatlar yo\'q') + '</p></div>';
+      return;
+    }
+    
+    container.innerHTML = completions.map(c => {
+      const course = allCourses.find(x => x.id === c.courseId) || { title: currentLanguage === 'ru' ? 'Курс обучения' : 'Training course' };
+      const date = new Date(c.completedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+      return `
+        <div class="cert-card" style="background:var(--bg-card); border:1px solid var(--border); padding:24px; border-radius:12px; display:flex; flex-direction:column; justify-content:space-between; gap:16px; position:relative; overflow:hidden">
+          <div style="position:absolute; top:-20px; right:-20px; font-size:6rem; opacity:0.04; pointer-events:none">🎓</div>
+          <div>
+            <div style="font-size:0.75rem; color:var(--blue); font-weight:700; letter-spacing:1px; margin-bottom:8px">SKYCHECK ACADEMY</div>
+            <h4 style="margin:0; font-size:1.1rem; font-weight:800; line-height:1.4">${esc(course.title)}</h4>
+            <p style="margin:8px 0 0 0; font-size:0.85rem; color:var(--text-muted)"><span data-i18n="form_name">Студент</span>: <strong>${esc(c.studentName || currentUser.name)}</strong></p>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:16px; margin-top:4px">
+            <span style="font-size:0.75rem; color:var(--text-dim)">${date}</span>
+            <button class="btn btn-primary btn-sm" onclick="downloadSVGCertificate('${esc(c.studentName || currentUser.name).replace(/'/g, "\\'")}', '${esc(course.title).replace(/'/g, "\\'")}')" style="padding:4px 10px; font-size:0.75rem">💾 Скачать</button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch {
+    container.innerHTML = '<p style="color:var(--danger)">Ошибка загрузки сертификатов</p>';
+  }
+}
+
+// ── SUPPORT SYSTEM MODAL INTERFACE ──
+function openSupportModal() {
+  document.getElementById('support-message').value = '';
+  document.getElementById('support-alert').innerHTML = '';
+  document.getElementById('support-modal').style.display = 'flex';
+}
+function closeSupportModal() {
+  document.getElementById('support-modal').style.display = 'none';
+}
+
+async function submitSupportRequest() {
+  const message = document.getElementById('support-message').value.trim();
+  const alertBox = document.getElementById('support-alert');
+  if (!message) {
+    alertBox.innerHTML = '<div class="alert alert-error">Введите ваше сообщение!</div>';
+    return;
+  }
+  
+  const token = localStorage.getItem('skycheck_token');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  
+  try {
+    const res = await fetch(`${API}/support`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ message })
+    });
+    if (!res.ok) throw new Error('Submission failed');
+    
+    document.getElementById('support-message').value = '';
+    alertBox.innerHTML = `<div class="alert alert-success">${currentLanguage==='ru'?'Сообщение успешно отправлено! Мы ответим вам в ближайшее время.':'Xabaringiz yuborildi!'}</div>`;
+    
+    setTimeout(() => {
+      closeSupportModal();
+    }, 2000);
+  } catch {
+    alertBox.innerHTML = '<div class="alert alert-error">Ошибка при отправке обращения</div>';
+  }
+}
+
+// ── LEGAL MODALS ──
+function openTermsModal() {
+  document.getElementById('terms-modal').style.display = 'flex';
+}
+function closeTermsModal() {
+  document.getElementById('terms-modal').style.display = 'none';
+}
+function openLicenseInfo() {
+  document.getElementById('license-modal').style.display = 'flex';
+}
+function closeLicenseModal() {
+  document.getElementById('license-modal').style.display = 'none';
+}
 
 // ── UTILS ──
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function formatDate(d) { return d ? new Date(d).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'}) : ''; }
-function courseEmoji(t) { return {beginner:'🚀',intermediate:'🎯',advanced:'⚡',pro:'🏆'}[t]||'📚'; }
 function getYouTubeEmbed(url) {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([a-zA-Z0-9_-]{11})/);
   return m ? `https://www.youtube.com/embed/${m[1]}` : null;
 }
-function darkMapStyle() { return [{elementType:'geometry',stylers:[{color:'#1e2a3a'}]},{elementType:'labels.text.stroke',stylers:[{color:'#0f172a'}]},{elementType:'labels.text.fill',stylers:[{color:'#8898aa'}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#0f2030'}]}]; }
 
-// ── INIT ──
+// ── APP INITIALIZATION ──
+checkUserLoginState();
 loadHomeStats();
-</script>
+loadCart();
 
-<!-- Google Maps — замените YOUR_GOOGLE_MAPS_API_KEY на ваш ключ -->
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=Function.prototype" async defer></script>
+// ══════════════════════════════════════════
+// ── ANIMATION SYSTEM ──
+// ══════════════════════════════════════════
+
+// 1. SCROLL REVEAL (IntersectionObserver)
+(function initScrollReveal() {
+  // Tag elements that should animate on scroll
+  function tagRevealElements() {
+    // Section headers
+    document.querySelectorAll('.section-header').forEach(el => {
+      if (!el.classList.contains('reveal')) el.classList.add('reveal');
+    });
+    // Section eyebrows and titles
+    document.querySelectorAll('.section-eyebrow, .section-title').forEach(el => {
+      if (!el.closest('.section-header')?.classList.contains('reveal')) {
+        if (!el.classList.contains('reveal')) el.classList.add('reveal');
+      }
+    });
+    // Cards
+    document.querySelectorAll('.news-card, .course-card, .product-card, .about-card').forEach((el, i) => {
+      if (!el.classList.contains('reveal')) {
+        el.classList.add('reveal');
+        el.classList.add('stagger-' + Math.min(i % 8 + 1, 8));
+      }
+    });
+    // Hero stats
+    document.querySelectorAll('.hero-stats > div').forEach((el, i) => {
+      if (!el.classList.contains('reveal')) {
+        el.classList.add('reveal');
+        el.classList.add('stagger-' + (i + 1));
+      }
+    });
+    // About section items
+    document.querySelectorAll('.about-grid .about-card').forEach((el, i) => {
+      if (!el.classList.contains('reveal-scale')) {
+        el.classList.add('reveal-scale');
+        el.classList.add('stagger-' + Math.min(i + 1, 8));
+      }
+    });
+    // Footer
+    document.querySelectorAll('.footer-col').forEach((el, i) => {
+      if (!el.classList.contains('reveal')) {
+        el.classList.add('reveal');
+        el.classList.add('stagger-' + Math.min(i + 1, 6));
+      }
+    });
+  }
+
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('revealed');
+      }
+    });
+  }, {
+    threshold: 0.08,
+    rootMargin: '0px 0px -40px 0px'
+  });
+
+  function observeAll() {
+    tagRevealElements();
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale').forEach(el => {
+      if (!el.classList.contains('revealed')) {
+        revealObserver.observe(el);
+      }
+    });
+  }
+
+  // Run on load and after page switches
+  observeAll();
+  
+  // Re-observe after page switches (MutationObserver on page activation)
+  const pageObserver = new MutationObserver(() => {
+    setTimeout(observeAll, 60);
+  });
+  document.querySelectorAll('.page').forEach(page => {
+    pageObserver.observe(page, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
+
+// 2. NAVBAR SCROLL EFFECT
+(function initNavbarScroll() {
+  const navbar = document.querySelector('.navbar');
+  if (!navbar) return;
+  
+  let lastScroll = 0;
+  window.addEventListener('scroll', () => {
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    if (scrollY > 80) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
+    }
+    lastScroll = scrollY;
+  }, { passive: true });
+})();
+
+// 3. SCROLL PROGRESS BAR
+(function initScrollProgress() {
+  const bar = document.createElement('div');
+  bar.className = 'scroll-progress';
+  bar.style.width = '0%';
+  document.body.appendChild(bar);
+
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    bar.style.width = progress + '%';
+  }, { passive: true });
+})();
+
+// 4. FLOATING PARTICLES
+(function initParticles() {
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.animationDuration = (12 + Math.random() * 18) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = (2 + Math.random() * 3) + 'px';
+    p.style.height = p.style.width;
+    document.body.appendChild(p);
+  }
+})();
+
+// 5. CURSOR GLOW
+(function initCursorGlow() {
+  const glow = document.createElement('div');
+  glow.className = 'cursor-glow';
+  document.body.appendChild(glow);
+
+  let mouseX = 0, mouseY = 0;
+  let glowX = 0, glowY = 0;
+
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  }, { passive: true });
+
+  function animateGlow() {
+    glowX += (mouseX - glowX) * 0.08;
+    glowY += (mouseY - glowY) * 0.08;
+    glow.style.left = glowX + 'px';
+    glow.style.top = glowY + 'px';
+    requestAnimationFrame(animateGlow);
+  }
+  animateGlow();
+})();
+
+// 6. HERO STAT COUNTER ANIMATION
+(function initCounters() {
+  function animateCounter(el, target) {
+    const duration = 1800;
+    const start = performance.now();
+    const startVal = 0;
+    
+    function tick(now) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(startVal + (target - startVal) * eased);
+      el.textContent = current.toLocaleString();
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // Watch for stats elements becoming visible
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !entry.target.dataset.counted) {
+        entry.target.dataset.counted = 'true';
+        const text = entry.target.textContent.replace(/[^0-9]/g, '');
+        const num = parseInt(text);
+        if (!isNaN(num) && num > 0) {
+          animateCounter(entry.target, num);
+        }
+      }
+    });
+  }, { threshold: 0.5 });
+
+  // Observe stat numbers
+  setTimeout(() => {
+    document.querySelectorAll('.hero-stat-num').forEach(el => {
+      counterObserver.observe(el);
+    });
+  }, 800);
+})();
+
+// 7. CARD 3D TILT EFFECT
+(function initCardTilt() {
+  function handleTilt(e) {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -4;
+    const rotateY = ((x - centerX) / centerX) * 4;
+    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
+  }
+
+  function resetTilt(e) {
+    e.currentTarget.style.transform = '';
+  }
+
+  // Apply to product and about cards
+  setTimeout(() => {
+    document.querySelectorAll('.product-card, .about-card').forEach(card => {
+      card.addEventListener('mousemove', handleTilt, { passive: true });
+      card.addEventListener('mouseleave', resetTilt);
+    });
+  }, 500);
+})();
+
+// 8. BUTTON RIPPLE EFFECT
+(function initButtonRipple() {
+  document.addEventListener('mousedown', (e) => {
+    const btn = e.target.closest('.btn');
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    btn.style.setProperty('--ripple-x', x + '%');
+    btn.style.setProperty('--ripple-y', y + '%');
+  });
+})();
+
+// 9. ENHANCED TOAST ANIMATIONS
+const origShowToast = typeof showToast === 'function' ? showToast : null;
+if (origShowToast) {
+  // Wrap existing showToast to use animation classes
+  const toastContainer = document.getElementById('toast-container');
+  if (toastContainer) {
+    const mo = new MutationObserver((mutations) => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach(node => {
+          if (node.nodeType === 1) {
+            node.style.animation = 'toastEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+          }
+        });
+      });
+    });
+    mo.observe(toastContainer, { childList: true });
+  }
+}
+
+</script>
 </body>
 </html>

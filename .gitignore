@@ -8,6 +8,12 @@ mobile/build/
 mobile/.dart_tool/
 mobile/.flutter-plugins-dependencies
 mobile/*.iml
+mobile/android/build/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
 
 # Web
 web/node_modules/
