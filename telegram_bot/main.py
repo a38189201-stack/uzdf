@@ -15,24 +15,32 @@ try:
     from telegram_bot.handlers import start, support
 except ModuleNotFoundError:
     import types
-    import config
-    import database
-    import logger
-    from handlers import start as handlers_start, support as handlers_support
     
+    # 1. Create and register package 'telegram_bot' in sys.modules
     telegram_bot = types.ModuleType('telegram_bot')
-    telegram_bot.config = config
-    telegram_bot.database = database
-    telegram_bot.logger = logger
+    sys.modules['telegram_bot'] = telegram_bot
     
+    # 2. Import config (no internal dependencies) and attach it
+    import config
+    telegram_bot.config = config
+    sys.modules['telegram_bot.config'] = config
+    
+    # 3. Import database (depends on config) and attach it
+    import database
+    telegram_bot.database = database
+    sys.modules['telegram_bot.database'] = database
+    
+    # 4. Import logger (depends on database) and attach it
+    import logger
+    telegram_bot.logger = logger
+    sys.modules['telegram_bot.logger'] = logger
+    
+    # 5. Import handlers (depend on database/logger) and register them
+    from handlers import start as handlers_start, support as handlers_support
     handlers = types.ModuleType('telegram_bot.handlers')
     handlers.start = handlers_start
     handlers.support = handlers_support
     
-    sys.modules['telegram_bot'] = telegram_bot
-    sys.modules['telegram_bot.config'] = config
-    sys.modules['telegram_bot.database'] = database
-    sys.modules['telegram_bot.logger'] = logger
     sys.modules['telegram_bot.handlers'] = handlers
     sys.modules['telegram_bot.handlers.start'] = handlers_start
     sys.modules['telegram_bot.handlers.support'] = handlers_support
