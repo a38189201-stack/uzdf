@@ -8,8 +8,37 @@ if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
 from aiogram import Bot, Dispatcher
-from telegram_bot import config, database, logger
-from telegram_bot.handlers import start, support
+
+# Support running directly inside the telegram_bot folder (e.g. on Railway root directory configuration)
+try:
+    from telegram_bot import config, database, logger
+    from telegram_bot.handlers import start, support
+except ModuleNotFoundError:
+    import types
+    import config
+    import database
+    import logger
+    from handlers import start as handlers_start, support as handlers_support
+    
+    telegram_bot = types.ModuleType('telegram_bot')
+    telegram_bot.config = config
+    telegram_bot.database = database
+    telegram_bot.logger = logger
+    
+    handlers = types.ModuleType('telegram_bot.handlers')
+    handlers.start = handlers_start
+    handlers.support = handlers_support
+    
+    sys.modules['telegram_bot'] = telegram_bot
+    sys.modules['telegram_bot.config'] = config
+    sys.modules['telegram_bot.database'] = database
+    sys.modules['telegram_bot.logger'] = logger
+    sys.modules['telegram_bot.handlers'] = handlers
+    sys.modules['telegram_bot.handlers.start'] = handlers_start
+    sys.modules['telegram_bot.handlers.support'] = handlers_support
+
+    from telegram_bot import config, database, logger
+    from telegram_bot.handlers import start, support
 
 # Set up logging to both console and DB
 log = logger.setup_logger()
