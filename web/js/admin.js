@@ -99,11 +99,22 @@ function showAdminApp() {
     if (btnAdmin) btnAdmin.style.display = 'inline-block';
     const btnSuper = document.getElementById('btn-create-superuser');
     if (btnSuper) btnSuper.style.display = 'inline-block';
+    const btnUser = document.getElementById('btn-create-user');
+    if (btnUser) btnUser.style.display = 'inline-block';
+  } else if (adminUser.role === 'admin') {
+    const btnAdmin = document.getElementById('btn-create-admin');
+    if (btnAdmin) btnAdmin.style.display = 'none';
+    const btnSuper = document.getElementById('btn-create-superuser');
+    if (btnSuper) btnSuper.style.display = 'none';
+    const btnUser = document.getElementById('btn-create-user');
+    if (btnUser) btnUser.style.display = 'inline-block';
   } else {
     const btnAdmin = document.getElementById('btn-create-admin');
     if (btnAdmin) btnAdmin.style.display = 'none';
     const btnSuper = document.getElementById('btn-create-superuser');
     if (btnSuper) btnSuper.style.display = 'none';
+    const btnUser = document.getElementById('btn-create-user');
+    if (btnUser) btnUser.style.display = 'none';
   }
 
   // Sidebar visibility based on role
@@ -698,6 +709,39 @@ async function saveSuperuser() {
   }
 }
 
+window.openCreateUserModal = function() {
+  document.getElementById('cu-name').value = '';
+  document.getElementById('cu-email').value = '';
+  document.getElementById('cu-password').value = '';
+  document.getElementById('cu-alert').innerHTML = '';
+  document.getElementById('create-user-modal').style.display = 'flex';
+};
+
+window.closeCreateUserModal = function() {
+  document.getElementById('create-user-modal').style.display = 'none';
+};
+
+window.saveUser = async function() {
+  const name = document.getElementById('cu-name').value.trim();
+  const email = document.getElementById('cu-email').value.trim();
+  const password = document.getElementById('cu-password').value;
+  if (!name || !email || !password) {
+    document.getElementById('cu-alert').innerHTML = '<div class="alert alert-error">Все поля обязательны</div>';
+    return;
+  }
+  try {
+    await api('/admin/create-user', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password })
+    });
+    closeCreateUserModal();
+    showToast('Пользователь успешно создан!', 'success');
+    loadUsersDashboard();
+  } catch (err) {
+    document.getElementById('cu-alert').innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  }
+};
+
 // ════════════════════════════════════
 // MAP ZONES (Leaflet Custom Pen Tool Drawing)
 // ════════════════════════════════════
@@ -1092,20 +1136,56 @@ function renderStepInput(s) {
 function renderQuizBuilder(s) {
   const qs=s.questions||[{question:'',options:['','','',''],answer:0}];
   return `<div class="quiz-builder" id="quiz-${s.id}">
-    ${qs.map((q,qi)=>`
-      <div style="background:var(--bg-card2);border-radius:10px;padding:14px;margin-bottom:10px">
-        <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">Вопрос ${qi+1}</div>
-        <input id="q-${s.id}-${qi}-q" value="${esc(q.question)}" placeholder="Вопрос..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:0.875rem;outline:none;margin-bottom:10px">
-        ${(q.options||[]).map((opt,oi)=>`
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <input type="radio" name="ans-${s.id}-${qi}" ${oi===q.answer?'checked':''} onchange="document.getElementById('qa-${s.id}-${qi}').value='${oi}'">
-            <input id="q-${s.id}-${qi}-o${oi}" value="${esc(opt)}" placeholder="Вариант ${oi+1}" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none">
-          </div>`).join('')}
-        <input type="hidden" id="qa-${s.id}-${qi}" value="${q.answer||0}">
-      </div>`).join('')}
+    <div class="quiz-questions-list" id="quiz-questions-list-${s.id}">
+      ${qs.map((q,qi)=>`
+        <div class="quiz-question-block" style="background:var(--bg-card2);border-radius:10px;padding:14px;margin-bottom:10px;position:relative" id="q-block-${s.id}-${qi}">
+          ${qi > 0 ? `<button class="btn btn-danger btn-sm" style="position:absolute;right:10px;top:10px" onclick="removeQuestionFromQuiz(${s.id},${qi})">🗑</button>` : ''}
+          <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">Вопрос ${qi+1}</div>
+          <input id="q-${s.id}-${qi}-q" value="${esc(q.question)}" placeholder="Вопрос..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:0.875rem;outline:none;margin-bottom:10px">
+          ${(q.options||[]).map((opt,oi)=>`
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <input type="radio" name="ans-${s.id}-${qi}" ${oi===q.answer?'checked':''} onchange="document.getElementById('qa-${s.id}-${qi}').value='${oi}'">
+              <input id="q-${s.id}-${qi}-o${oi}" value="${esc(opt)}" placeholder="Вариант ${oi+1}" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none">
+            </div>`).join('')}
+          <input type="hidden" id="qa-${s.id}-${qi}" value="${q.answer||0}">
+        </div>`).join('')}
+    </div>
     <input type="hidden" id="quiz-count-${s.id}" value="${qs.length}">
+    <button type="button" class="btn btn-secondary btn-sm" style="margin-top:4px;margin-bottom:10px" onclick="addQuestionToQuiz(${s.id})">+ Добавить вопрос</button>
   </div>`;
 }
+
+window.addQuestionToQuiz = function(stepId) {
+  const list = document.getElementById(`quiz-questions-list-${stepId}`);
+  if (!list) return;
+  const countInput = document.getElementById(`quiz-count-${stepId}`);
+  const qi = parseInt(countInput.value);
+  
+  const div = document.createElement('div');
+  div.className = 'quiz-question-block';
+  div.id = `q-block-${stepId}-${qi}`;
+  div.style.cssText = 'background:var(--bg-card2);border-radius:10px;padding:14px;margin-bottom:10px;position:relative';
+  div.innerHTML = `
+    <button class="btn btn-danger btn-sm" style="position:absolute;right:10px;top:10px" onclick="removeQuestionFromQuiz(${stepId},${qi})">🗑</button>
+    <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">Вопрос ${qi+1}</div>
+    <input id="q-${stepId}-${qi}-q" value="" placeholder="Вопрос..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:0.875rem;outline:none;margin-bottom:10px">
+    ${[0,1,2,3].map(oi=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <input type="radio" name="ans-${stepId}-${qi}" ${oi===0?'checked':''} onchange="document.getElementById('qa-${stepId}-${qi}').value='${oi}'">
+        <input id="q-${stepId}-${qi}-o${oi}" value="" placeholder="Вариант ${oi+1}" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:0.85rem;outline:none">
+      </div>`).join('')}
+    <input type="hidden" id="qa-${stepId}-${qi}" value="0">
+  `;
+  list.appendChild(div);
+  countInput.value = qi + 1;
+};
+
+window.removeQuestionFromQuiz = function(stepId, qi) {
+  const block = document.getElementById(`q-block-${stepId}-${qi}`);
+  if (block) {
+    block.remove();
+  }
+};
 
 function changeStepType(stepId, courseId, type, btn) {
   btn.closest('.step-type-selector').querySelectorAll('.step-type-btn').forEach(b=>b.classList.remove('active'));
@@ -1128,7 +1208,9 @@ async function saveStep(stepId, courseId) {
     const count=parseInt(document.getElementById(`quiz-count-${stepId}`)?.value||'1');
     questions=[];
     for(let qi=0;qi<count;qi++){
-      const question=document.getElementById(`q-${stepId}-${qi}-q`)?.value?.trim()||'';
+      const qInput = document.getElementById(`q-${stepId}-${qi}-q`);
+      if (!qInput) continue; // Skip removed questions!
+      const question=qInput.value.trim()||'';
       const answer=parseInt(document.getElementById(`qa-${stepId}-${qi}`)?.value||'0');
       const options=[0,1,2,3].map(oi=>document.getElementById(`q-${stepId}-${qi}-o${oi}`)?.value?.trim()||'');
       questions.push({question,options,answer});

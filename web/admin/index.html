@@ -197,6 +197,7 @@
             </select>
             <button class="btn btn-primary btn-sm" id="btn-create-admin" style="display:none" onclick="openCreateAdminModal()">+ Создать админа</button>
             <button class="btn btn-primary btn-sm" id="btn-create-superuser" style="display:none; background:#8B5CF6; border-color:#8B5CF6" onclick="openCreateSuperuserModal()">+ Создать суперюзера</button>
+            <button class="btn btn-primary btn-sm" id="btn-create-user" style="display:none; background:#10B981; border-color:#10B981" onclick="openCreateUserModal()">+ Создать пользователя</button>
           </div>
         </div>
         <div class="table-responsive" style="overflow-x: auto;">
@@ -619,6 +620,26 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeCreateSuperuserModal()">Отмена</button>
       <button class="btn btn-primary" style="background:#8B5CF6; border-color:#8B5CF6" onclick="saveSuperuser()">💾 Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE USER MODAL -->
+<div class="modal-overlay" id="create-user-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Создать пользователя</h3>
+      <button class="modal-close" onclick="closeCreateUserModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="cu-alert"></div>
+      <div class="form-group"><label>Имя</label><input id="cu-name" placeholder="Имя пользователя"></div>
+      <div class="form-group"><label>Email</label><input id="cu-email" type="email" placeholder="user@uzdf.uz"></div>
+      <div class="form-group"><label>Пароль</label><input id="cu-password" type="password" placeholder="••••••••"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCreateUserModal()">Отмена</button>
+      <button class="btn btn-primary" style="background:#10B981; border-color:#10B981" onclick="saveUser()">💾 Создать</button>
     </div>
   </div>
 </div>

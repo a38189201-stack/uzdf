@@ -767,6 +767,8 @@ app.get('/courses', async (req, res) => {
     const userId = getUserIdFromToken(req);
     let userRole = 'user';
     let completedCourseIds = [];
+    const progressMap = {};
+
     if (userId) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (user) {
@@ -776,6 +778,13 @@ app.get('/courses', async (req, res) => {
         where: { userId }
       });
       completedCourseIds = completions.map(c => c.courseId);
+
+      const progresses = await prisma.userLessonProgress.findMany({
+        where: { userId }
+      });
+      progresses.forEach(p => {
+        progressMap[p.stepId] = p;
+      });
     }
 
     const coursesWithLock = courses.map((course, index) => {
@@ -787,8 +796,50 @@ app.get('/courses', async (req, res) => {
       if (['superuser', 'superadmin', 'admin', 'supersupport', 'support'].includes(userRole)) {
         isLocked = false;
       }
+
+      let prevStepCompleted = true;
+      const stepsWithProgress = course.steps.map((step) => {
+        let stepLocked = false;
+        const progress = progressMap[step.id];
+
+        if (['superuser', 'superadmin', 'admin', 'supersupport', 'support'].includes(userRole)) {
+          stepLocked = false;
+        } else {
+          if (step.isFinalExam) {
+            const otherSteps = course.steps.filter(s => s.id !== step.id);
+            const anyIncomplete = otherSteps.some(s => {
+              const prog = progressMap[s.id];
+              return !prog || prog.status !== 'completed';
+            });
+            stepLocked = anyIncomplete;
+          } else {
+            stepLocked = !prevStepCompleted;
+          }
+        }
+
+        prevStepCompleted = progress && progress.status === 'completed';
+
+        return {
+          ...step,
+          userProgress: progress ? {
+            id: progress.id,
+            userId: progress.userId,
+            stepId: progress.stepId,
+            status: progress.status,
+            scrollCompleted: progress.scrollCompleted,
+            timeSpentSeconds: progress.timeSpentSeconds,
+            lessonStartedAt: progress.lessonStartedAt,
+            isTimerCompleted: progress.isTimerCompleted,
+            quizAttempts: progress.quizAttempts,
+            cooldownUntil: progress.cooldownUntil
+          } : null,
+          isLocked: stepLocked
+        };
+      });
+
       return {
         ...course,
+        steps: stepsWithProgress,
         isLocked
       };
     });
@@ -1001,6 +1052,63 @@ async function evaluateAndIssueCertificate(userId, courseId) {
   return { issued: true, uuid };
 }
 
+async function checkAndCompleteCourse(userId, courseId) {
+  try {
+    const steps = await prisma.courseStep.findMany({
+      where: { courseId }
+    });
+    if (steps.length === 0) return;
+
+    const progresses = await prisma.userLessonProgress.findMany({
+      where: {
+        userId,
+        stepId: { in: steps.map(s => s.id) },
+        status: 'completed'
+      }
+    });
+
+    if (progresses.length === steps.length) {
+      const existingCompletion = await prisma.courseCompletion.findUnique({
+        where: { userId_courseId: { userId, courseId } }
+      });
+
+      let certificateUuid = existingCompletion?.certificateUuid || null;
+
+      if (!certificateUuid) {
+        try {
+          const certResult = await evaluateAndIssueCertificate(userId, courseId);
+          certificateUuid = certResult.uuid;
+        } catch (err) {
+          console.log(`User ${userId} completed course ${courseId} but did not qualify for certificate yet: ${err.message}`);
+        }
+      }
+
+      await prisma.courseCompletion.upsert({
+        where: { userId_courseId: { userId, courseId } },
+        update: {
+          lessonsCompletionPercent: 100.0,
+          certificateUuid: certificateUuid || undefined,
+          certificateIssuedAt: certificateUuid ? new Date() : undefined
+        },
+        create: {
+          userId,
+          courseId,
+          lessonsCompletionPercent: 100.0,
+          certificateUuid,
+          certificateIssuedAt: certificateUuid ? new Date() : null,
+          completedAt: new Date()
+        }
+      });
+
+      if (!existingCompletion) {
+        await grantUserExpAndCheckAchievements(userId, 200, 'course_completed', prisma);
+      }
+    }
+  } catch (err) {
+    console.error(`Error in checkAndCompleteCourse for user ${userId}, course ${courseId}:`, err);
+  }
+}
+
 app.post('/courses/:id/complete', authMiddleware, async (req, res) => {
   try {
     const courseId = parseInt(req.params.id);
@@ -1168,6 +1276,9 @@ app.post('/courses/steps/:stepId/complete', authMiddleware, async (req, res) => 
 
     // Award +50 EXP on completing step
     const result = await grantUserExpAndCheckAchievements(req.user.id, 50, 'course_step', prisma);
+
+    // Auto complete course check
+    await checkAndCompleteCourse(req.user.id, step.courseId);
 
     res.json({
       progress,
@@ -1369,16 +1480,23 @@ app.post('/courses/steps/:stepId/quiz-submit', authMiddleware, async (req, res) 
     let certificateUuid = null;
     let errorIssuingCertificate = null;
 
-    if (passed && step.isFinalExam) {
-      // Attempt to issue certificate if all conditions are met
-      try {
-        const certResult = await evaluateAndIssueCertificate(req.user.id, step.courseId);
-        if (certResult.issued) {
+    if (passed) {
+      await checkAndCompleteCourse(req.user.id, step.courseId);
+
+      if (step.isFinalExam) {
+        const completion = await prisma.courseCompletion.findUnique({
+          where: { userId_courseId: { userId: req.user.id, courseId: step.courseId } }
+        });
+        if (completion && completion.certificateUuid) {
           certificateIssued = true;
-          certificateUuid = certResult.uuid;
+          certificateUuid = completion.certificateUuid;
+        } else {
+          try {
+            await evaluateAndIssueCertificate(req.user.id, step.courseId);
+          } catch (err) {
+            errorIssuingCertificate = err.message;
+          }
         }
-      } catch (err) {
-        errorIssuingCertificate = err.message;
       }
     }
 
@@ -1481,7 +1599,86 @@ app.get('/courses/:id', async (req, res) => {
       include: { steps: { orderBy: { order: 'asc' } } },
     });
     if (!course) return res.status(404).json({ error: 'Не найдено' });
-    res.json(course);
+
+    const userId = getUserIdFromToken(req);
+    let userRole = 'user';
+    let completedCourseIds = [];
+    const progressMap = {};
+
+    if (userId) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (user) {
+        userRole = user.role;
+      }
+      const completions = await prisma.courseCompletion.findMany({
+        where: { userId }
+      });
+      completedCourseIds = completions.map(c => c.courseId);
+
+      const progresses = await prisma.userLessonProgress.findMany({
+        where: { userId }
+      });
+      progresses.forEach(p => {
+        progressMap[p.stepId] = p;
+      });
+    }
+
+    let isLocked = false;
+    const allCourses = await prisma.course.findMany({ orderBy: { id: 'asc' } });
+    const index = allCourses.findIndex(c => c.id === course.id);
+    if (index > 0) {
+      const prevCourse = allCourses[index - 1];
+      isLocked = !completedCourseIds.includes(prevCourse.id);
+    }
+    if (['superuser', 'superadmin', 'admin', 'supersupport', 'support'].includes(userRole)) {
+      isLocked = false;
+    }
+
+    let prevStepCompleted = true;
+    const stepsWithProgress = course.steps.map((step) => {
+      let stepLocked = false;
+      const progress = progressMap[step.id];
+
+      if (['superuser', 'superadmin', 'admin', 'supersupport', 'support'].includes(userRole)) {
+        stepLocked = false;
+      } else {
+        if (step.isFinalExam) {
+          const otherSteps = course.steps.filter(s => s.id !== step.id);
+          const anyIncomplete = otherSteps.some(s => {
+            const prog = progressMap[s.id];
+            return !prog || prog.status !== 'completed';
+          });
+          stepLocked = anyIncomplete;
+        } else {
+          stepLocked = !prevStepCompleted;
+        }
+      }
+
+      prevStepCompleted = progress && progress.status === 'completed';
+
+      return {
+        ...step,
+        userProgress: progress ? {
+          id: progress.id,
+          userId: progress.userId,
+          stepId: progress.stepId,
+          status: progress.status,
+          scrollCompleted: progress.scrollCompleted,
+          timeSpentSeconds: progress.timeSpentSeconds,
+          lessonStartedAt: progress.lessonStartedAt,
+          isTimerCompleted: progress.isTimerCompleted,
+          quizAttempts: progress.quizAttempts,
+          cooldownUntil: progress.cooldownUntil
+        } : null,
+        isLocked: stepLocked
+      };
+    });
+
+    res.json({
+      ...course,
+      steps: stepsWithProgress,
+      isLocked
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -2296,6 +2493,41 @@ app.post('/admin/create-superuser', superAdminMiddleware, async (req, res) => {
     });
 
     res.json({ success: true, user: { id: superuser.id, name: superuser.name, email: superuser.email, role: superuser.role } });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/create-user', adminMiddleware, async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: 'Все поля обязательны' });
+
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return res.status(400).json({ error: 'Пользователь с таким email уже существует' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: 'user',
+        courseLives: 3
+      }
+    });
+
+    await prisma.adminAction.create({
+      data: {
+        adminId: req.user.id,
+        actionType: 'CREATE_USER',
+        targetUserId: user.id,
+        details: `Создан обычный пользователь: ${email}`
+      }
+    });
+
+    res.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
