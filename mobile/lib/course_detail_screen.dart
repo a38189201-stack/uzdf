@@ -8,20 +8,50 @@ import 'glass_widgets.dart';
 import 'app_state.dart';
 import 'api_service.dart';
 
-class CourseDetailScreen extends StatelessWidget {
+class CourseDetailScreen extends StatefulWidget {
   final Map<String, dynamic> course;
 
   const CourseDetailScreen({super.key, required this.course});
 
   @override
+  State<CourseDetailScreen> createState() => _CourseDetailScreenState();
+}
+
+class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  late Map<String, dynamic> _currentCourse;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentCourse = widget.course;
+  }
+
+  Future<void> _refreshCourse() async {
+    if (!mounted) return;
+    final courses = await ApiService.fetchCourses();
+    if (!mounted) return;
+    if (courses.isNotEmpty) {
+      final updated = courses.firstWhere(
+        (c) => c['id'].toString() == _currentCourse['id'].toString(),
+        orElse: () => null,
+      );
+      if (updated != null) {
+        setState(() {
+          _currentCourse = updated;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = AppState();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final steps = course['steps'] as List<dynamic>? ?? [];
+    final steps = _currentCourse['steps'] as List<dynamic>? ?? [];
 
     return Scaffold(
       appBar: GlassAppBar(
-        title: Text(course['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w400, letterSpacing: -0.5)),
+        title: Text(_currentCourse['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w400, letterSpacing: -0.5)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
@@ -73,7 +103,7 @@ class CourseDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            course['description'] ?? '',
+                            _currentCourse['description'] ?? '',
                             style: TextStyle(
                               fontSize: 15,
                               height: 1.5,
@@ -116,10 +146,14 @@ class CourseDetailScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         GlassRoute(
-                          page: StepDetailScreen(step: step),
+                          page: StepDetailScreen(
+                            steps: steps,
+                            initialIndex: index - 1,
+                            onStepCompleted: _refreshCourse,
+                          ),
                         ),
                       ).then((_) {
-                        // Refresh on return
+                        _refreshCourse();
                       });
                     },
                     child: GlassContainer(
@@ -235,15 +269,26 @@ class CourseDetailScreen extends StatelessWidget {
 }
 
 class StepDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> step;
+  final List<dynamic> steps;
+  final int initialIndex;
+  final VoidCallback? onStepCompleted;
 
-  const StepDetailScreen({super.key, required this.step});
+  const StepDetailScreen({
+    super.key,
+    required this.steps,
+    required this.initialIndex,
+    this.onStepCompleted,
+  });
 
   @override
   State<StepDetailScreen> createState() => _StepDetailScreenState();
 }
 
 class _StepDetailScreenState extends State<StepDetailScreen> {
+  late int _currentIndex;
+
+  Map<String, dynamic> get _currentStep => widget.steps[_currentIndex];
+
   bool _isLoading = true;
   bool _isBlocked = false;
   String _blockMessage = '';
@@ -273,9 +318,45 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _isQuiz = widget.step['type'] == 'quiz';
-    _isFinalExam = widget.step['isFinalExam'] ?? false;
+    _currentIndex = widget.initialIndex;
+    _isQuiz = _currentStep['type'] == 'quiz';
+    _isFinalExam = _currentStep['isFinalExam'] ?? false;
     _activateSecureMode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadStepData();
+    });
+  }
+
+  void _initForCurrentIndex() {
+    _readingTimer?.cancel();
+    _videoTimer?.cancel();
+    _scrollController?.dispose();
+    _scrollController = null;
+
+    final currentStep = widget.steps[_currentIndex];
+
+    setState(() {
+      _isLoading = true;
+      _isBlocked = false;
+      _blockMessage = '';
+      _status = 'not_started';
+      _scrollCompleted = false;
+      _secondsSpent = 0;
+      _estimatedReadTime = 0;
+      _remainingVideoSeconds = 0;
+      _videoDuration = 0;
+      _isQuiz = currentStep['type'] == 'quiz';
+      _isFinalExam = currentStep['isFinalExam'] ?? false;
+      _quizQuestions = [];
+      _selectedAnswers.clear();
+      _quizSubmitted = false;
+      _quizPassed = false;
+      _quizScore = 0.0;
+      _attemptsUsed = 0;
+      _failedTopics = [];
+      _cooldownUntil = null;
+    });
+
     _loadStepData();
   }
 
@@ -317,7 +398,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
       _quizSubmitted = false;
     });
 
-    final stepId = widget.step['id'];
+    final stepId = _currentStep['id'];
 
     // Call startStep to initialize/get progress
     final startRes = await ApiService.startStep(stepId);
@@ -381,7 +462,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
         _isLoading = false;
       });
     } else {
-      if (widget.step['type'] == 'text') {
+      if (_currentStep['type'] == 'text') {
         _estimatedReadTime = startRes['estimatedReadTimeSeconds'] ?? 0;
         _scrollController = ScrollController();
         _scrollController!.addListener(_onScroll);
@@ -406,7 +487,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
             }
           }
         });
-      } else if (widget.step['type'] == 'video') {
+      } else if (_currentStep['type'] == 'video') {
         _videoDuration = startRes['videoDurationSeconds'] ?? 0;
         
         if (progress['lessonStartedAt'] != null) {
@@ -457,7 +538,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     });
 
     final res = await ApiService.completeStepSecure(
-      stepId: widget.step['id'],
+      stepId: _currentStep['id'],
       scrollCompleted: _scrollCompleted,
       timeSpentSeconds: _secondsSpent,
     );
@@ -486,6 +567,9 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
       _status = 'completed';
     });
 
+    // Notify parent to refresh steps status
+    widget.onStepCompleted?.call();
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(res['message'] ?? 'Урок завершен!')),
     );
@@ -508,7 +592,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
       'selectedOption': e.value
     }).toList();
 
-    final res = await ApiService.submitQuiz(widget.step['id'], answersPayload);
+    final res = await ApiService.submitQuiz(_currentStep['id'], answersPayload);
 
     if (!mounted) return;
 
@@ -543,6 +627,8 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
 
       if (_quizPassed) {
         _status = 'completed';
+        // Notify parent
+        widget.onStepCompleted?.call();
         if (res['certificateIssued'] == true) {
           _showCertificateIssuedDialog(res['certificateUuid']);
         }
@@ -590,7 +676,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
   }
 
   Future<void> _simulateViolation() async {
-    final res = await ApiService.logViolation(widget.step['id']);
+    final res = await ApiService.logViolation(_currentStep['id']);
     if (res == null) return;
 
     if (!mounted) return;
@@ -672,7 +758,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final step = widget.step;
+    final step = _currentStep;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final type = step['type'] ?? 'text';
 
@@ -919,6 +1005,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
   Widget _buildQuizResults() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final remainingCooldownMinutes = _cooldownUntil != null ? _cooldownUntil!.difference(DateTime.now()).inMinutes : 0;
+    final isLastStep = _currentIndex >= widget.steps.length - 1;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24.0),
@@ -994,13 +1081,35 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
               ),
             ),
           const SizedBox(height: 12),
-          TextButton(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).pop();
-            },
-            child: const Text('Вернуться к списку уроков', style: TextStyle(color: Color(0xFF007AFF))),
-          )
+          if (_quizPassed)
+            GlassButton(
+              gradient: isLastStep 
+                  ? const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF007AFF)]) 
+                  : const LinearGradient(colors: [Color(0xFF34C759), Color(0xFF30B34A)]),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                if (isLastStep) {
+                  Navigator.of(context).pop();
+                } else {
+                  setState(() {
+                    _currentIndex++;
+                    _initForCurrentIndex();
+                  });
+                }
+              },
+              child: Text(
+                isLastStep ? 'Завершить курс ✓' : 'Следующий шаг →',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+              ),
+            )
+          else
+            TextButton(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Вернуться к списку уроков', style: TextStyle(color: Color(0xFF007AFF))),
+            )
         ],
       ),
     );
@@ -1024,17 +1133,34 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     final barBgColor = isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03);
 
     if (_status == 'completed') {
+      final isLastStep = _currentIndex >= widget.steps.length - 1;
       return Container(
         color: barBgColor,
         padding: const EdgeInsets.all(16.0),
-        child: const GlassButton(
-          onPressed: null,
-          child: Text('Урок пройден ✓', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        child: GlassButton(
+          gradient: isLastStep 
+              ? const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF007AFF)]) 
+              : const LinearGradient(colors: [Color(0xFF34C759), Color(0xFF30B34A)]),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            if (isLastStep) {
+              Navigator.of(context).pop();
+            } else {
+              setState(() {
+                _currentIndex++;
+                _initForCurrentIndex();
+              });
+            }
+          },
+          child: Text(
+            isLastStep ? 'Завершить курс ✓' : 'Следующий шаг →', 
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+          ),
         ),
       );
     }
 
-    final isText = widget.step['type'] == 'text';
+    final isText = _currentStep['type'] == 'text';
 
     if (isText) {
       final textReady = _scrollCompleted && _secondsSpent >= _estimatedReadTime;
