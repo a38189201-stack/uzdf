@@ -512,7 +512,6 @@ body::before {
   gap: 48px;
   padding: 120px 48px 40px; /* Reduced vertical padding */
   position: relative;
-  overflow: hidden;
   max-width: 1200px;
   margin: 0 auto;
   text-align: left;
@@ -622,8 +621,8 @@ body::before {
 
 /* 3D Drone Sketchfab Embed */
 .hero-drone-3d-wrapper {
-  width: 360px;
-  height: 360px;
+  width: 420px;
+  height: 420px;
   border-radius: 50%;
   overflow: hidden;
   border: none !important;
@@ -631,19 +630,25 @@ body::before {
   filter: drop-shadow(0 20px 50px rgba(0, 102, 255, 0.35));
   animation: floatDrone3DModel 8s ease-in-out infinite alternate;
   position: relative;
-  /* Force clipping of iframe inside circular wrapper during animations/transitions */
+  /* Force clipping of model-viewer inside circular wrapper during animations/transitions */
   transform: translate3d(0, 0, 0);
   -webkit-mask-image: -webkit-radial-gradient(white, black);
   isolation: isolate;
 }
 
-.hero-drone-3d-iframe {
+/* 3D Model Viewer Drone */
+model-viewer {
   width: 100%;
   height: 100%;
-  border: none !important;
-  outline: none !important;
-  display: block;
-  background: transparent;
+  background-color: transparent !important;
+  --progress-bar-color: transparent !important;
+  --progress-bar-height: 0px !important;
+  outline: none;
+  border: none;
+}
+
+model-viewer::part(default-ar-button) {
+  display: none !important;
 }
 
 @keyframes floatDrone3DModel {

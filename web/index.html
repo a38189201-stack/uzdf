@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 </head>
 <body>
 <canvas id="particles-canvas"></canvas>
@@ -135,14 +136,15 @@
     <!-- Center Column: Floating 3D Drone -->
     <div class="hero-drone-container">
       <div class="hero-drone-3d-wrapper">
-        <iframe
-          class="hero-drone-3d-iframe"
-          title="3D Drone Model"
-          src="https://sketchfab.com/models/0ad12799f89b45968afd9dcf9bee9467/embed?autospin=0.4&autostart=1&transparent=1&ui_animations=0&ui_infos=0&ui_stop=0&ui_inspector=0&ui_watermark_link=0&ui_watermark=0&ui_ar=0&ui_help=0&ui_settings=0&ui_vr=0&ui_fullscreen=0&ui_annotations=0&preload=1&camera=0&scrollwheel=0&double_click=0"
-          frameborder="0"
-          allow="autoplay; fullscreen; xr-spatial-tracking"
-          allowfullscreen
-        ></iframe>
+        <model-viewer
+          src="/models/drone.glb"
+          alt="БПЛА дрон"
+          auto-rotate
+          camera-controls
+          disable-zoom
+          rotation-per-second="30deg"
+          style="width: 420px; height: 420px; border-radius: 50%; overflow: hidden; background: transparent; --progress-bar-color: transparent;"
+        ></model-viewer>
       </div>
       <img src="/img/hero_drone.png" alt="Drone" class="hero-drone-img">
     </div>
