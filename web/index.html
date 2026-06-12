@@ -5,17 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UZDF — Безопасные полёты БПЛА в Узбекистане</title>
   <meta name="description" content="UZDF — интерактивная карта зон полетов дронов, курсы пилотирования, магазин оборудования и сертификация пилотов БПЛА.">
+  <script>
+    // Sync theme settings instantly in head to prevent dark mode flash
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 </head>
 <body>
+<!-- WELCOME APP LOADER -->
+<div id="welcome-loader" class="welcome-loader">
+  <div class="loader-content">
+    <div class="loader-logo" style="display:flex; align-items:center; gap:12px; justify-content:center;">
+      <img src="img/logo.png" alt="Logo" style="height:48px; object-fit:contain;">
+      <span>UZDF</span>
+    </div>
+    <div class="loader-bar-bg">
+      <div class="loader-bar-fill"></div>
+    </div>
+    <div class="loader-status">CONNECTING TO SATELLITES...</div>
+  </div>
+</div>
+
 <canvas id="particles-canvas"></canvas>
 
 <!-- NAVBAR -->
 <nav class="navbar">
-  <div class="navbar-logo" onclick="showPage('home')">✈ UZDF</div>
+  <div class="navbar-logo" onclick="showPage('home')" style="display:flex; align-items:center; gap:8px;">
+    <img src="img/logo.png" alt="Logo" style="height:32px; object-fit:contain;">
+    <span>UZDF</span>
+  </div>
   <div class="navbar-links" id="navbar-links">
     <a onclick="showPage('home')" id="nav-home" class="active" data-i18n="nav_home">Главная</a>
     <a onclick="showPage('news')" id="nav-news" data-i18n="nav_news">Новости</a>
@@ -43,7 +65,10 @@
 <div class="page" id="page-login">
   <div class="login-page">
     <div class="login-card">
-      <h2 id="login-header-title">✈ UZDF</h2>
+      <h2 id="login-header-title" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+        <img src="img/logo.png" alt="Logo" style="height:36px; object-fit:contain;">
+        <span>UZDF</span>
+      </h2>
       <p id="login-header-sub" data-i18n="login_sub">Войдите в аккаунт пилота БПЛА</p>
       <div class="login-tabs">
         <button class="login-tab active" onclick="switchTab('signin')" id="tab-btn-signin" data-i18n="login_tab_signin">Войти</button>
@@ -110,12 +135,30 @@
     </div>
     <!-- Left Column: Text & Stats -->
     <div class="hero-content">
-      <div class="hero-badge" data-i18n="hero_badge">🛸 Единая платформа для пилотов БПЛА</div>
+      <div class="hero-badge">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span data-i18n="hero_badge">Единая платформа для пилотов БПЛА</span>
+      </div>
       <h1 id="hero-main-title" data-i18n="hero_title"><span class="outline-text">БЕЗОПАСНЫЙ</span><span class="blue">ПОЛЕТ</span></h1>
       <p class="hero-sub" data-i18n="hero_desc">Проверяйте зоны полетов дронов в реальном времени, проходите обучение с получением сертификатов пилотов и покупайте профессиональное оборудование.</p>
       <div class="hero-btns">
-        <button class="btn btn-primary" onclick="showPage('map')" data-i18n="hero_btn_map">🗺 Открыть карту</button>
-        <button class="btn btn-ghost" onclick="showPage('courses')" data-i18n="hero_btn_courses">📚 Обучение пилотов</button>
+        <button class="btn btn-primary" onclick="showPage('map')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+            <line x1="9" y1="3" x2="9" y2="18"/>
+            <line x1="15" y1="6" x2="15" y2="21"/>
+          </svg>
+          <span data-i18n="hero_btn_map">Открыть карту</span>
+        </button>
+        <button class="btn btn-ghost" onclick="showPage('courses')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          <span data-i18n="hero_btn_courses">Обучение пилотов</span>
+        </button>
       </div>
       <div class="hero-stats">
         <div>
@@ -143,7 +186,7 @@
           camera-controls
           disable-zoom
           rotation-per-second="30deg"
-          style="width: 420px; height: 420px; border-radius: 50%; overflow: hidden; background: transparent; --progress-bar-color: transparent;"
+          style="width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: transparent; --progress-bar-color: transparent;"
         ></model-viewer>
       </div>
       <img src="/img/hero_drone.png" alt="Drone" class="hero-drone-img">
@@ -166,21 +209,262 @@
     <p class="partners-title" data-i18n="partners_title">Наши партнеры и инвесторы</p>
     <div class="partners-marquee">
       <div class="partners-track">
-        <span>🚁 AeroUz</span>
-        <span>🛰️ UzSpace</span>
-        <span>🏢 Ministry of Transport</span>
-        <span>🌐 Tashkent Air Control</span>
-        <span>🛸 DJI Academy Uz</span>
-        <span>⚙️ SkyTech Systems</span>
-        <span>🦅 Falcon Drone Club</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>AeroUz</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/></svg>UzSpace</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="16"/><line x1="15" y1="22" x2="15" y2="16"/><path d="M8 6h2v2H8V6zm4 0h2v2h-2V6zm4 0h2v2h-2V6zM8 10h2v2H8v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z"/></svg>Ministry of Transport</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Tashkent Air Control</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>DJI Academy Uz</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"/></svg>SkyTech Systems</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><path d="M2 22l1-1M3 21a2 2 0 0 1 2.83 0L10 25.17l5.17-5.17a2 2 0 0 1 2.83 0L22 24"/></svg>Falcon Drone Club</span>
         <!-- Duplicate for infinite looping -->
-        <span>🚁 AeroUz</span>
-        <span>🛰️ UzSpace</span>
-        <span>🏢 Ministry of Transport</span>
-        <span>🌐 Tashkent Air Control</span>
-        <span>🛸 DJI Academy Uz</span>
-        <span>⚙️ SkyTech Systems</span>
-        <span>🦅 Falcon Drone Club</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>AeroUz</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/></svg>UzSpace</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="22" x2="9" y2="16"/><line x1="15" y1="22" x2="15" y2="16"/><path d="M8 6h2v2H8V6zm4 0h2v2h-2V6zm4 0h2v2h-2V6zM8 10h2v2H8v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z"/></svg>Ministry of Transport</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Tashkent Air Control</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>DJI Academy Uz</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"/></svg>SkyTech Systems</span>
+        <span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;"><path d="M2 22l1-1M3 21a2 2 0 0 1 2.83 0L10 25.17l5.17-5.17a2 2 0 0 1 2.83 0L22 24"/></svg>Falcon Drone Club</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bento Grid Section -->
+  <section class="section reveal-on-scroll" id="bento-section">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow" data-i18n="bento_eyebrow">Экосистема</div>
+        <h2 class="section-title" data-i18n="bento_title">Сверхспособности <span>платформы</span></h2>
+      </div>
+    </div>
+    <div class="bento-grid">
+      <!-- Card 1: Interactive Map Preview (2x1) -->
+      <div class="bento-card col-span-2 reveal stagger-1">
+        <div class="bento-card-body">
+          <div class="bento-card-info">
+            <span class="bento-card-tag" data-i18n="bento_tag_map">Навигация</span>
+            <h3 class="bento-card-title" data-i18n="bento_title_map">Интерактивное воздушное пространство</h3>
+            <p class="bento-card-desc" data-i18n="bento_desc_map">Интерактивная 3D-карта полетных зон в реальном времени с фильтрацией красных, желтых и зеленых коридоров.</p>
+          </div>
+          <div class="bento-widget map-widget">
+            <div class="mini-map-glow"></div>
+            <div class="mini-map-grid"></div>
+            <div class="map-pulse-node" style="top: 40%; left: 30%;">
+              <span class="node-ring"></span>
+              <span class="node-dot"></span>
+            </div>
+            <div class="map-pulse-node yellow" style="top: 60%; left: 70%;">
+              <span class="node-ring"></span>
+              <span class="node-dot"></span>
+            </div>
+            <div class="map-zone-circle red" style="top: 35%; left: 25%; width: 60px; height: 60px;"></div>
+            <div class="map-zone-circle yellow" style="top: 55%; left: 65%; width: 80px; height: 80px;"></div>
+            <div class="map-compass">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2 6.4-6.4 2 2-6.4 6.4-2z"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Pilot ID Badge (1x1) -->
+      <div class="bento-card reveal stagger-2">
+        <div class="bento-card-body vertical">
+          <div class="bento-card-info">
+            <span class="bento-card-tag" data-i18n="bento_tag_cert">Статус</span>
+            <h3 class="bento-card-title" data-i18n="bento_title_cert">Цифровая лицензия пилота</h3>
+          </div>
+          <div class="bento-widget pilot-badge-widget">
+            <div class="pilot-badge-card">
+              <div class="badge-card-header">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                <span>UZDF PILOT ID</span>
+              </div>
+              <div class="badge-card-uuid">UUID: 87ff7fe5-uzdf</div>
+              <div class="badge-card-profile">
+                <div class="badge-avatar">U</div>
+                <div class="badge-details">
+                  <div class="badge-name">UAV PILOT</div>
+                  <div class="badge-rank">COMMERCIAL CLASS I</div>
+                </div>
+              </div>
+              <div class="badge-card-status">
+                <span class="status-pulse"></span>
+                ACTIVE LICENSE
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Instant approvals status list (1x1) -->
+      <div class="bento-card reveal stagger-3">
+        <div class="bento-card-body vertical">
+          <div class="bento-card-info">
+            <span class="bento-card-tag" data-i18n="bento_tag_approvals">Комплаенс</span>
+            <h3 class="bento-card-title" data-i18n="bento_title_approvals">Быстрое разрешение</h3>
+          </div>
+          <div class="bento-widget approvals-widget">
+            <div class="approval-item success">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="bento_appr_1">GPS координаты</span>
+            </div>
+            <div class="approval-item success">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="bento_appr_2">Погода в норме</span>
+            </div>
+            <div class="approval-item success">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px; vertical-align: middle;"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="bento_appr_3">Сертификат активен</span>
+            </div>
+            <div class="approval-item pulse">
+              <span class="mini-spinner"></span>
+              <span data-i18n="bento_appr_4">Разрешение на взлет</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Live Telemetry Gauges (2x1) -->
+      <div class="bento-card col-span-2 reveal stagger-4">
+        <div class="bento-card-body">
+          <div class="bento-card-info">
+            <span class="bento-card-tag" data-i18n="bento_tag_telemetry">Телеметрия</span>
+            <h3 class="bento-card-title" data-i18n="bento_title_telemetry">Полетная телеметрия БПЛА</h3>
+            <p class="bento-card-desc" data-i18n="bento_desc_telemetry">Интеграция с бортовыми компьютерами для сбора параметров высоты, скорости и заряда батареи в прямом эфире.</p>
+          </div>
+          <div class="bento-widget telemetry-widget">
+            <div class="tel-gauge">
+              <div class="tel-gauge-circle" style="--val: 78%;">
+                <span class="tel-gauge-num">78%</span>
+              </div>
+              <div class="tel-gauge-label" data-i18n="tel_battery">БАТАРЕЯ</div>
+            </div>
+            <div class="tel-gauge">
+              <div class="tel-gauge-circle" style="--val: 54%;">
+                <span class="tel-gauge-num">54 <span style="font-size:0.6rem">км/ч</span></span>
+              </div>
+              <div class="tel-gauge-label" data-i18n="tel_speed">СКОРОСТЬ</div>
+            </div>
+            <div class="tel-gauge">
+              <div class="tel-gauge-circle" style="--val: 62%;">
+                <span class="tel-gauge-num">120 <span style="font-size:0.6rem">м</span></span>
+              </div>
+              <div class="tel-gauge-label" data-i18n="tel_altitude">ВЫСОТА</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Control Dashboard Demo Section -->
+  <section class="section reveal-on-scroll" id="demo-section">
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow" data-i18n="demo_eyebrow">Панель управления</div>
+        <h2 class="section-title" data-i18n="demo_title">Центр управления <span>полётами</span></h2>
+      </div>
+    </div>
+    <div class="demo-grid">
+      <!-- Left controls panel -->
+      <div class="demo-sidebar">
+        <!-- Control 1: Radar scanner -->
+        <div class="demo-control-card">
+          <div class="demo-control-header">
+            <span data-i18n="demo_tag_radar">Сканирование радара</span>
+            <label class="switch">
+              <input type="checkbox" id="radar-toggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <p class="demo-control-desc" data-i18n="demo_desc_radar">Включить круговой радар обнаружения препятствий и других БПЛА.</p>
+        </div>
+
+        <!-- Control 2: Thermal view filter -->
+        <div class="demo-control-card">
+          <div class="demo-control-header">
+            <span data-i18n="demo_tag_thermal">Тепловизор</span>
+            <label class="switch">
+              <input type="checkbox" id="thermal-toggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <p class="demo-control-desc" data-i18n="demo_desc_thermal">Переключить видеопоток на тепловизионный фильтр высокой четкости.</p>
+        </div>
+
+        <!-- Control 3: Flight Permit request simulation -->
+        <div class="demo-control-card" style="border-color: rgba(0, 102, 255, 0.25);">
+          <div class="demo-control-header" style="margin-bottom: 6px;">
+            <span data-i18n="demo_tag_permit">Разрешение на взлет</span>
+          </div>
+          <p class="demo-control-desc" data-i18n="demo_desc_permit" style="margin-bottom: 16px;">Симуляция отправки полетного плана и получение цифрового разрешения.</p>
+          <button class="btn btn-primary btn-permit" id="demo-permit-btn" data-i18n="demo_btn_permit">Запросить разрешение</button>
+        </div>
+      </div>
+
+      <!-- Right viewfinder viewport and HUD overlay -->
+      <div class="demo-viewfinder">
+        <video id="demo-video" class="viewfinder-video" src="https://assets.mixkit.co/videos/preview/mixkit-flying-a-fpv-drone-above-a-mountain-valley-41712-large.mp4" autoplay loop muted playsinline></video>
+        
+        <!-- Radar Scanning Ring -->
+        <div class="radar-overlay" id="radar-overlay">
+          <div class="radar-sweep"></div>
+        </div>
+
+        <!-- Takeoff Permit status banner overlay -->
+        <div class="permit-banner" id="permit-banner">
+          <span class="indicator-dot"></span>
+          <span id="permit-status-text">ОЖИДАНИЕ</span>
+        </div>
+
+        <!-- Flight HUD overlay lines -->
+        <div class="viewfinder-hud" id="demo-hud">
+          <div class="hud-top">
+            <div>MODE: MANUAL</div>
+            <div>BAT: 84%</div>
+            <div>GPS: 41.31° N, 69.24° E</div>
+          </div>
+          <div class="hud-center">
+            <div class="hud-crosshair"></div>
+            <div class="hud-pitch-ladder">
+              <svg viewBox="0 0 120 80">
+                <line x1="10" y1="25" x2="35" y2="25" />
+                <line x1="35" y1="25" x2="35" y2="30" />
+                <line x1="85" y1="25" x2="110" y2="25" />
+                <line x1="85" y1="25" x2="85" y2="30" />
+                <text x="4" y="28" font-size="6" fill="currentColor">10</text>
+                <text x="112" y="28" font-size="6" fill="currentColor">10</text>
+                
+                <line x1="15" y1="55" x2="35" y2="55" stroke-dasharray="2 2" stroke="currentColor" />
+                <line x1="35" y1="55" x2="35" y2="50" stroke="currentColor" />
+                <line x1="85" y1="55" x2="105" y2="55" stroke-dasharray="2 2" stroke="currentColor" />
+                <line x1="85" y1="55" x2="85" y2="50" stroke="currentColor" />
+                <text x="4" y="58" font-size="6" fill="currentColor">-10</text>
+                <text x="108" y="58" font-size="6" fill="currentColor">-10</text>
+              </svg>
+            </div>
+            <!-- Left altitude/speed tape -->
+            <div class="hud-side-tape left-tape">
+              <div class="tape-marker">60</div>
+              <div class="tape-marker">55</div>
+              <div class="tape-marker" style="font-weight: bold; color: var(--blue)">54</div>
+              <div class="tape-marker">50</div>
+              <div class="tape-marker">45</div>
+            </div>
+            <!-- Right altitude tape -->
+            <div class="hud-side-tape right-tape">
+              <div class="tape-marker">140</div>
+              <div class="tape-marker">130</div>
+              <div class="tape-marker" style="font-weight: bold; color: var(--blue)">120</div>
+              <div class="tape-marker">110</div>
+              <div class="tape-marker">100</div>
+            </div>
+          </div>
+          <div class="hud-bottom" style="display: flex; justify-content: space-between;">
+            <div>SPD: 54 KM/H</div>
+            <div>VS: +0.5 M/S</div>
+            <div>ALT: 120 M</div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -232,9 +516,20 @@
       <div class="footer-col">
         <div class="footer-logo" style="display:flex; align-items:center; gap:8px;"><img src="img/logo.png" alt="Logo" style="height:32px; object-fit:contain;"><span>UZDF</span></div>
         <p style="color:var(--text-muted); font-size:0.9rem; margin-top:12px; line-height:1.6" data-i18n="footer_sub">Платформа мониторинга полетных зон и сертификации пилотов гражданских БПЛА в Узбекистане.</p>
-        <div style="display:flex; gap:12px; margin-top:20px">
-          <a href="https://instagram.com" target="_blank" style="text-decoration:none; font-size:1.5rem">📸</a>
-          <a href="https://t.me" target="_blank" style="text-decoration:none; font-size:1.5rem">📢</a>
+        <div class="footer-social-links">
+          <a href="https://instagram.com" target="_blank" class="footer-social-btn" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+            </svg>
+          </a>
+          <a href="https://t.me" target="_blank" class="footer-social-btn" aria-label="Telegram">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </a>
         </div>
       </div>
       <div class="footer-col">
@@ -298,16 +593,25 @@
     <aside class="weather-sidebar" id="weather-sidebar">
       <!-- Header -->
       <div class="ws-header">
-        <div class="ws-header-icon">🛡️</div>
+        <div class="ws-header-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
         <div>
           <h3 class="ws-title" data-i18n="weather_widget_title">Безопасность полётов</h3>
-          <div class="ws-city" id="ws-city">📍 Ташкент</div>
+          <div class="ws-city" id="ws-city">Ташкент</div>
         </div>
       </div>
 
       <!-- Status Banner -->
       <div class="ws-status-banner ws-status-safe" id="ws-status-banner">
-        <div class="ws-status-icon" id="ws-status-icon">☀️</div>
+        <div class="ws-status-icon" id="ws-status-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+        </div>
         <div>
           <div class="ws-status-text" id="ws-status-text" data-i18n="weather_safe">Полеты разрешены</div>
           <div class="ws-status-sub" id="ws-status-sub">Отличные условия для полётов</div>
@@ -325,14 +629,22 @@
       <div class="ws-metrics-grid" id="ws-metrics-grid">
         <!-- Temperature -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">🌡️</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_temp">Температура</div>
           <div class="ws-metric-value" id="ws-temp">+28°C</div>
           <div class="ws-metric-extra" id="ws-temp-feel">Ощущается +30°C</div>
         </div>
         <!-- Wind Speed + Direction -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">💨</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_wind">Ветер</div>
           <div class="ws-metric-value" id="ws-wind">4.2 м/с</div>
           <div class="ws-metric-extra" id="ws-wind-dir">
@@ -341,56 +653,88 @@
         </div>
         <!-- Humidity -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">💧</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22a7 7 0 0 0 7-7c0-4.3-7-13-7-13S5 10.7 5 15a7 7 0 0 0 7 7z"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_humidity">Влажность</div>
           <div class="ws-metric-value" id="ws-humidity">34%</div>
           <div class="ws-metric-bar"><div class="ws-metric-bar-fill" id="ws-humidity-bar" style="width:34%"></div></div>
         </div>
         <!-- Air Pressure -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">🔵</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M12 6v6l3 3"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_pressure">Давление</div>
           <div class="ws-metric-value" id="ws-pressure">1013 гПа</div>
           <div class="ws-metric-extra" id="ws-pressure-trend">↗ Растёт</div>
         </div>
         <!-- Visibility -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">👁️</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_visibility">Видимость</div>
           <div class="ws-metric-value" id="ws-visibility">10+ км</div>
           <div class="ws-metric-extra ws-good" id="ws-visibility-status">Отличная</div>
         </div>
         <!-- UV Index -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">☀️</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_uv">УФ-индекс</div>
           <div class="ws-metric-value" id="ws-uv">5</div>
           <div class="ws-metric-extra ws-warn" id="ws-uv-status">Умеренный</div>
         </div>
         <!-- Air Quality (AQI) -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">🏭</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 20h20M20 20V8l-6 4V8l-6 4V8l-6 4v8"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_aqi">Загрязнение воздуха</div>
           <div class="ws-metric-value" id="ws-aqi">42 AQI</div>
           <div class="ws-metric-bar ws-aqi-bar"><div class="ws-metric-bar-fill ws-aqi-fill" id="ws-aqi-bar" style="width:42%; background:var(--green)"></div></div>
         </div>
         <!-- Precipitation -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">🌧️</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 13a4 4 0 0 0-8 0h8z"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><line x1="8" y1="19" x2="8" y2="21"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="16" y1="19" x2="16" y2="21"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_precip">Осадки</div>
           <div class="ws-metric-value" id="ws-precip">0%</div>
           <div class="ws-metric-extra ws-good" id="ws-precip-status">Без осадков</div>
         </div>
         <!-- Cloud Cover -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">☁️</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_clouds">Облачность</div>
           <div class="ws-metric-value" id="ws-clouds">15%</div>
           <div class="ws-metric-bar"><div class="ws-metric-bar-fill" id="ws-clouds-bar" style="width:15%; background:var(--text-muted)"></div></div>
         </div>
         <!-- Geomagnetic Index -->
         <div class="ws-metric-card">
-          <div class="ws-metric-icon">🧲</div>
+          <div class="ws-metric-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 10a7 7 0 0 1 14 0v3a2 2 0 0 1-4 0v-3a3 3 0 0 0-6 0v3a2 2 0 0 1-4 0v-3z"/><path d="M15 14h4v3a4 4 0 0 1-8 0v-3h4"/>
+            </svg>
+          </div>
           <div class="ws-metric-label" data-i18n="weather_kindex">Геомагнитный индекс</div>
           <div class="ws-metric-value" id="ws-kindex">Kp 2</div>
           <div class="ws-metric-extra ws-good" id="ws-kindex-status">Тихо</div>
@@ -650,7 +994,7 @@
         <!-- Category 1 -->
         <div class="faq-category-card">
           <div class="faq-cat-header">
-            <span class="faq-cat-icon">🛸</span>
+            <span class="faq-cat-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="faq-cat-svg"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></span>
             <h3 data-i18n="faq_cat_general">Общие вопросы</h3>
           </div>
           <div class="accordion">
@@ -678,7 +1022,7 @@
         <!-- Category 2 -->
         <div class="faq-category-card">
           <div class="faq-cat-header">
-            <span class="faq-cat-icon">🗺</span>
+            <span class="faq-cat-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="faq-cat-svg"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg></span>
             <h3 data-i18n="faq_cat_zones">Карта полетных зон</h3>
           </div>
           <div class="accordion">
@@ -706,7 +1050,7 @@
         <!-- Category 3 -->
         <div class="faq-category-card">
           <div class="faq-cat-header">
-            <span class="faq-cat-icon">❤️</span>
+            <span class="faq-cat-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="faq-cat-svg"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
             <h3 data-i18n="faq_cat_courses">Курсы и Попытки</h3>
           </div>
           <div class="accordion">
@@ -743,7 +1087,7 @@
         <!-- Category 4 -->
         <div class="faq-category-card">
           <div class="faq-cat-header">
-            <span class="faq-cat-icon">🛒</span>
+            <span class="faq-cat-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="faq-cat-svg"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>
             <h3 data-i18n="faq_cat_shop">Магазин и Заказы</h3>
           </div>
           <div class="accordion">
@@ -932,7 +1276,43 @@ let isScrollCompleted = false;
 let quizQuestions = [];
 let quizSelectedAnswers = {};
 let signupVerifyEmail = null;
-let currentTheme = 'dark';
+let currentTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', currentTheme);
+
+// ── WELCOME LOADER INITIALIZATION ──
+(function runWelcomeLoader() {
+  const loader = document.getElementById('welcome-loader');
+  if (!loader) return;
+  const bar = loader.querySelector('.loader-bar-fill');
+  const statusText = loader.querySelector('.loader-status');
+
+  const statuses = [
+    { p: 30, t: 'CONNECTING TO SATELLITES...' },
+    { p: 65, t: 'LOADING AIRSPACE ZONES...' },
+    { p: 90, t: 'VALIDATING PILOT CREDENTIALS...' },
+    { p: 100, t: 'SYSTEM READY' }
+  ];
+
+  let currentIdx = 0;
+  
+  function updateProgress() {
+    if (currentIdx >= statuses.length) {
+      setTimeout(() => {
+        loader.classList.add('fade-out');
+        setTimeout(() => loader.remove(), 600);
+      }, 300);
+      return;
+    }
+    const current = statuses[currentIdx];
+    bar.style.width = current.p + '%';
+    statusText.textContent = current.t;
+    currentIdx++;
+    setTimeout(updateProgress, 400 + Math.random() * 100);
+  }
+
+  setTimeout(updateProgress, 100);
+})();
+
 let currentLanguage = 'ru';
 
 // ── TRANSLATIONS DICTIONARY ──
@@ -955,12 +1335,12 @@ const translations = {
     form_language: "Язык интерфейса",
     login_btn_signin: "Войти в аккаунт",
     login_btn_signup: "Создать аккаунт",
-    hero_badge: "🛸 Единая платформа для пилотов БПЛА",
+    hero_badge: "Единая платформа для пилотов БПЛА",
     hero_title: '<span class="outline-text">БЕЗОПАСНЫЙ</span><span class="blue">ПОЛЕТ</span>',
     hero_pilot_text: "Присоединяйтесь к крупнейшему событию.",
     hero_desc: "Проверяйте зоны полетов дронов в реальном времени, проходите обучение с получением сертификатов пилотов и покупайте профессиональное оборудование.",
-    hero_btn_map: "🗺 Открыть карту",
-    hero_btn_courses: "📚 Обучение пилотов",
+    hero_btn_map: "Открыть карту",
+    hero_btn_courses: "Обучение пилотов",
     stat_zones: "Зон на карте",
     stat_courses: "Курсов обучения",
     stat_news: "Новостей авиации",
@@ -1070,7 +1450,36 @@ const translations = {
     faq_a8: "Перейдите в раздел «Магазин», выберите товар и нажмите кнопку оформления. Ваш заказ будет сохранен.",
     faq_q9: "Как указать адрес доставки?",
     faq_a9: "После оформления перейдите в профиль -> «Мои заказы», выберите ваш заказ и заполните форму доставки (Адрес, Город, Телефон).",
-    partners_title: "Наши партнеры и инвесторы"
+    partners_title: "Наши партнеры и инвесторы",
+    bento_eyebrow: "Экосистема",
+    bento_title: "Сверхспособности <span>платформы</span>",
+    bento_tag_map: "Навигация",
+    bento_title_map: "Интерактивное воздушное пространство",
+    bento_desc_map: "Интерактивная 3D-карта полетных зон в реальном времени с фильтрацией красных, желтых и зеленых коридоров.",
+    bento_tag_cert: "Статус",
+    bento_title_cert: "Цифровая лицензия пилота",
+    bento_tag_approvals: "Комплаенс",
+    bento_title_approvals: "Быстрое разрешение",
+    bento_appr_1: "GPS координаты",
+    bento_appr_2: "Погода в норме",
+    bento_appr_3: "Сертификат активен",
+    bento_appr_4: "Разрешение на взлет",
+    bento_tag_telemetry: "Телеметрия",
+    bento_title_telemetry: "Полетная телеметрия БПЛА",
+    bento_desc_telemetry: "Интеграция с бортовыми компьютерами для сбора параметров высоты, скорости и заряда батареи в прямом эфире.",
+    tel_battery: "БАТАРЕЯ",
+    tel_speed: "СКОРОСТЬ",
+    tel_altitude: "ВЫСОТА",
+    demo_eyebrow: "Панель управления",
+    demo_title: "Центр управления <span>полётами</span>",
+    demo_tag_radar: "Сканирование радара",
+    demo_desc_radar: "Включить круговой радар обнаружения препятствий и других БПЛА.",
+    demo_tag_thermal: "Тепловизор",
+    demo_desc_thermal: "Переключить видеопоток на тепловизионный фильтр высокой четкости.",
+    demo_tag_permit: "Разрешение на взлет",
+    demo_desc_permit: "Симуляция отправки полетного плана и получение цифрового разрешения.",
+    demo_btn_permit: "Запросить разрешение"
+
   },
   uz: {
     nav_home: "Bosh sahifa",
@@ -1090,12 +1499,12 @@ const translations = {
     form_language: "Interface tili",
     login_btn_signin: "Tizimga kirish",
     login_btn_signup: "Profil yaratish",
-    hero_badge: "🛸 BPLA uchuvchilari uchun yagona platforma",
+    hero_badge: "BPLA uchuvchilari uchun yagona platforma",
     hero_title: '<span class="outline-text">XAVFSIZ</span><span class="blue">PARVOZ</span>',
     hero_pilot_text: "Eng katta tadbirga qo'shiling.",
     hero_desc: "Haqiqiy vaqtda dron parvozi zonalarini tekshiring, pilot sertifikatini olish uchun kurslarni yakunlang va do'kondan uskunalar sotib oling.",
-    hero_btn_map: "🗺 Xaritani ochish",
-    hero_btn_courses: "📚 O'qitish kurslari",
+    hero_btn_map: "Xaritani ochish",
+    hero_btn_courses: "O'qitish kurslari",
     stat_zones: "Xaritadagi zonalar",
     stat_courses: "O'qitish kurslari",
     stat_news: "Yangiliklar soni",
@@ -1205,7 +1614,36 @@ const translations = {
     faq_a8: "\"Do'kon\" bo'limiga o'ting, mahsulotni tanlang va buyurtma berish tugmasini bosing. Buyurtmangiz saqlanib qoladi.",
     faq_q9: "Yetkazib berish manzili qanday ko'rsatiladi?",
     faq_a9: "Buyurtma berganingizdan so'ng profil -> \"Mening buyurtmalarim\" bo'limiga o'ting, buyurtmangizni tanlang va yetkazib berish formasini to'ldiring (Manzil, Shahar, Telefon).",
-    partners_title: "Hamkorlarimiz va investorlar"
+    partners_title: "Hamkorlarimiz va investorlar",
+    bento_eyebrow: "Ekotizim",
+    bento_title: "Platforma <span>imkoniyatlari</span>",
+    bento_tag_map: "Navigatsiya",
+    bento_title_map: "Interaktiv havo hududi",
+    bento_desc_map: "Qizil, sariq va yashil yo'laklar filtri bilan real vaqtdagi parvoz zonalari interaktiv xaritasi.",
+    bento_tag_cert: "Status",
+    bento_title_cert: "Raqamli uchuvchi litsenziyasi",
+    bento_tag_approvals: "Komplayens",
+    bento_title_approvals: "Tezkor ruxsatnoma",
+    bento_appr_1: "GPS koordinatalari",
+    bento_appr_2: "Ob-havo me'yorda",
+    bento_appr_3: "Sertifikat faol",
+    bento_appr_4: "Uchishga ruxsatnoma",
+    bento_tag_telemetry: "Telemetriya",
+    bento_title_telemetry: "BPLA parvoz telemetriyasi",
+    bento_desc_telemetry: "Bort kompyuterlari bilan integratsiya orqali balandlik, tezlik va batareya parametrlarini yig'ish.",
+    tel_battery: "BATAREYA",
+    tel_speed: "TEZLIK",
+    tel_altitude: "BALANDLIK",
+    demo_eyebrow: "Boshqaruv paneli",
+    demo_title: "Parvozlarni <span>boshqarish markazi</span>",
+    demo_tag_radar: "Radar skanerlash",
+    demo_desc_radar: "To'siqlar va boshqa BPLAlarni aniqlash uchun aylanma radarni yoqish.",
+    demo_tag_thermal: "Termal kamera",
+    demo_desc_thermal: "Jonli efirni yuqori aniqlikdagi termal filtrga o'tkazish.",
+    demo_tag_permit: "Uchishga ruxsatnoma",
+    demo_desc_permit: "Parvoz rejasini yuborish va raqamli ruxsatnoma olish simulyatsiyasi.",
+    demo_btn_permit: "Ruxsatnoma so'rash"
+
   },
   en: {
     nav_home: "Home",
@@ -1225,12 +1663,12 @@ const translations = {
     form_language: "Language",
     login_btn_signin: "Sign In",
     login_btn_signup: "Create Account",
-    hero_badge: "🛸 Unified Platform for UAV Pilots",
+    hero_badge: "Unified Platform for UAV Pilots",
     hero_title: '<span class="outline-text">POWER</span><span class="blue">DRONES</span>',
     hero_pilot_text: "JOIN the biggest event ever.",
     hero_desc: "Check drone flight zones in real-time, complete training courses to earn pilot certificates, and purchase professional drone equipment.",
-    hero_btn_map: "🗺 Open Airspace Map",
-    hero_btn_courses: "📚 Pilot Academy",
+    hero_btn_map: "Open Airspace Map",
+    hero_btn_courses: "Pilot Academy",
     stat_zones: "Map Zones",
     stat_courses: "Training Courses",
     stat_news: "News Posts",
@@ -1340,7 +1778,36 @@ const translations = {
     faq_a8: "Go to the \"Shop\" section, select a product, and click the checkout button. Your order will be saved.",
     faq_q9: "How to specify the delivery address?",
     faq_a9: "After checking out, go to Profile -> \"My Orders\", select your order, and fill out the delivery form (Address, City, Phone).",
-    partners_title: "Our Partners & Investors"
+    partners_title: "Our Partners & Investors",
+    bento_eyebrow: "Ecosystem",
+    bento_title: "Platform <span>Superpowers</span>",
+    bento_tag_map: "Navigation",
+    bento_title_map: "Interactive Airspace",
+    bento_desc_map: "Real-time interactive 3D map of flight zones with filtering of red, yellow, and green corridors.",
+    bento_tag_cert: "Status",
+    bento_title_cert: "Digital Pilot License",
+    bento_tag_approvals: "Compliance",
+    bento_title_approvals: "Instant Clearance",
+    bento_appr_1: "GPS Coordinates",
+    bento_appr_2: "Weather limits OK",
+    bento_appr_3: "Certificate active",
+    bento_appr_4: "Takeoff clearance",
+    bento_tag_telemetry: "Telemetry",
+    bento_title_telemetry: "UAV Flight Telemetry",
+    bento_desc_telemetry: "Integration with onboard computers to collect real-time altitude, speed, and battery metrics.",
+    tel_battery: "BATTERY",
+    tel_speed: "SPEED",
+    tel_altitude: "ALTITUDE",
+    demo_eyebrow: "Control Center",
+    demo_title: "Flight Control <span>Dashboard</span>",
+    demo_tag_radar: "Radar Scanning",
+    demo_desc_radar: "Toggle circular radar overlay to detect obstacles and other UAVs.",
+    demo_tag_thermal: "Thermal Camera",
+    demo_desc_thermal: "Toggle live viewfinder stream into high-contrast thermal imaging.",
+    demo_tag_permit: "Flight Permit Request",
+    demo_desc_permit: "Simulate flight plan submission and retrieve digital airspace clearance.",
+    demo_btn_permit: "Request Clearance"
+
   }
 };
 
@@ -1402,6 +1869,7 @@ function toggleTheme() {
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
   document.getElementById('theme-btn').textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+  localStorage.setItem('theme', currentTheme);
   
   // Dynamic Leaflet maps theme sync
   if (publicMap && publicMapTiles) {
@@ -1921,6 +2389,20 @@ function switchWeatherTab(tab) {
   renderWeatherSidebar();
 }
 
+function getWeatherSVG(emoji) {
+  const mapping = {
+    '☀️': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`,
+    '🌤️': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><path d="M12 2v2M4.93 4.93l1.41 1.41M2 12h2M6.34 17.66l-1.41 1.41"/><path d="M17 18a5 5 0 0 0-10 0M12 10a4 4 0 0 1 8 0 4 4 0 0 1-8 0z" fill="rgba(255,255,255,0.1)"/><path d="M22 17h-2.5a2.5 2.5 0 0 0-2.5-2.5h-1a3.5 3.5 0 0 0-7 0H8a3 3 0 0 0-3 3v0a3 3 0 0 0 3 3h14Z"/></svg>`,
+    '⛅': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><path d="M12 2v2M19.07 4.93l-1.41 1.41"/><path d="M22 17h-2.5a2.5 2.5 0 0 0-2.5-2.5h-1a3.5 3.5 0 0 0-7 0H8a3 3 0 0 0-3 3v0a3 3 0 0 0 3 3h14Z" fill="rgba(255,255,255,0.1)"/></svg>`,
+    '☁️': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><path d="M17.5 19A3.5 3.5 0 0 0 21 15.5c0-2.79-2.54-4.5-5-4.5h-1a5.5 5.5 0 0 0-10.5 2A3.5 3.5 0 0 0 8 20h9.5z"/></svg>`,
+    '🌧️': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><path d="M16 13a4 4 0 0 0-8 0h8z"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/><path d="M8 19v3M12 21v2M16 19v3"/></svg>`,
+    '⛈️': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><path d="M19 16.9A5 5 0 0 0 18 7h-1.26a8 8 0 1 0-11.62 8.58"/><path d="M13 18l-2 4h3l-2 4"/></svg>`,
+    '🌅': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><path d="M12 2v2M4.93 4.93l1.41 1.41M19.07 4.93l-1.41 1.41M2 18h20M2 22h20M16 18a4 4 0 0 0-8 0"/></svg>`,
+    '🌙': `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="weather-svg"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>`
+  };
+  return mapping[emoji] || emoji;
+}
+
 function renderWeatherSidebar() {
   const d = weatherForecastData[currentWeatherTab];
   if (!d) return;
@@ -1933,7 +2415,12 @@ function renderWeatherSidebar() {
 
   // City
   const wsCity = document.getElementById('ws-city');
-  if (wsCity) wsCity.textContent = '📍 ' + cityName;
+  if (wsCity) {
+    wsCity.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>` + cityName;
+  }
 
   // Status banner
   const banner = document.getElementById('ws-status-banner');
@@ -1941,7 +2428,7 @@ function renderWeatherSidebar() {
     banner.className = 'ws-status-banner ws-status-' + d.status;
   }
   const sIcon = document.getElementById('ws-status-icon');
-  if (sIcon) sIcon.textContent = d.icon;
+  if (sIcon) sIcon.innerHTML = getWeatherSVG(d.icon);
 
   const sText = document.getElementById('ws-status-text');
   if (sText) {
@@ -2043,7 +2530,7 @@ function renderWeatherSidebar() {
       const isNow = currentWeatherTab === 'today' && h.h === nowH;
       return `<div class="ws-hour-card ${isNow ? 'ws-hour-now' : ''}">
         <div class="ws-hour-time">${String(h.h).padStart(2, '0')}:00</div>
-        <div class="ws-hour-icon">${h.icon}</div>
+        <div class="ws-hour-icon">${getWeatherSVG(h.icon)}</div>
         <div class="ws-hour-temp">${h.t > 0 ? '+' : ''}${h.t}°</div>
         <div class="ws-hour-wind">${h.w} ${ms}</div>
       </div>`;
@@ -3353,6 +3840,78 @@ function getYouTubeEmbed(url) {
 checkUserLoginState();
 loadHomeStats();
 loadCart();
+
+// Sync theme icon on page load
+document.getElementById('theme-btn').textContent = currentTheme === 'dark' ? '🌙' : '☀️';
+
+// ── INTERACTIVE DEMO INITIALIZATION ──
+(function initInteractiveDemo() {
+  const radarToggle = document.getElementById('radar-toggle');
+  const thermalToggle = document.getElementById('thermal-toggle');
+  const permitBtn = document.getElementById('demo-permit-btn');
+  const radarOverlay = document.getElementById('radar-overlay');
+  const demoVideo = document.getElementById('demo-video');
+  const demoHud = document.getElementById('demo-hud');
+  const permitBanner = document.getElementById('permit-banner');
+  const permitText = document.getElementById('permit-status-text');
+
+  if (radarToggle) {
+    radarToggle.addEventListener('change', () => {
+      if (radarToggle.checked) {
+        radarOverlay.classList.add('active');
+      } else {
+        radarOverlay.classList.remove('active');
+      }
+    });
+  }
+
+  if (thermalToggle) {
+    thermalToggle.addEventListener('change', () => {
+      if (thermalToggle.checked) {
+        demoVideo.classList.add('thermal-active');
+        demoHud.classList.add('thermal-active');
+        radarOverlay.classList.add('thermal-active');
+      } else {
+        demoVideo.classList.remove('thermal-active');
+        demoHud.classList.remove('thermal-active');
+        radarOverlay.classList.remove('thermal-active');
+      }
+    });
+  }
+
+  if (permitBtn) {
+    permitBtn.addEventListener('click', () => {
+      permitBtn.disabled = true;
+      permitBtn.textContent = currentLanguage === 'ru' ? 'Обработка...' : currentLanguage === 'uz' ? 'Muvofiqlashtirilmoqda...' : 'Processing...';
+      
+      permitBanner.className = 'permit-banner checking';
+      permitText.textContent = currentLanguage === 'ru' ? 'ПРОВЕРКА КООРДИНАТ...' : currentLanguage === 'uz' ? 'KOORDINATALAR TEKSHIRILMOQDA...' : 'CHECKING COORDINATES...';
+      
+      setTimeout(() => {
+        permitText.textContent = currentLanguage === 'ru' ? 'АНАЛИЗ ПОГОДЫ...' : currentLanguage === 'uz' ? 'OB-HAVO TAHLILI...' : 'ANALYZING WEATHER...';
+      }, 600);
+
+      setTimeout(() => {
+        permitText.textContent = currentLanguage === 'ru' ? 'СОГЛАСОВАНИЕ С АГС...' : currentLanguage === 'uz' ? 'FAZA BILAN MUVASSAFIYLASHTIRISH...' : 'CLEARING AIRSPACE...';
+      }, 1200);
+
+      setTimeout(() => {
+        permitBanner.className = 'permit-banner approved';
+        permitText.textContent = currentLanguage === 'ru' ? 'РАЗРЕШЕНО' : currentLanguage === 'uz' ? 'RUXSAT BERILDI' : 'PERMIT APPROVED';
+        permitBtn.textContent = currentLanguage === 'ru' ? 'ПОЛЕТ РАЗРЕШЕН' : currentLanguage === 'uz' ? 'UCHISH MUMKIN' : 'CLEARANCE GRANTED';
+        showToast(currentLanguage === 'ru' ? 'Полетный коридор согласован!' : 'Flight corridor approved!', 'success');
+      }, 1800);
+
+      setTimeout(() => {
+        // Reset
+        permitBanner.className = 'permit-banner';
+        permitText.textContent = currentLanguage === 'ru' ? 'ОЖИДАНИЕ' : currentLanguage === 'uz' ? 'KUTISH' : 'SYSTEM STANDBY';
+        permitBtn.disabled = false;
+        permitBtn.textContent = currentLanguage === 'ru' ? 'Запросить разрешение' : currentLanguage === 'uz' ? 'Ruxsatnoma so\'rash' : 'Request Clearance';
+      }, 5500);
+    });
+  }
+})();
 
 // ══════════════════════════════════════════
 // ── ANIMATION SYSTEM ──
