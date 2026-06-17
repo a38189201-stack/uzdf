@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'glass_widgets.dart';
 import 'app_state.dart';
 import 'api_service.dart';
@@ -51,56 +52,76 @@ class _BlogScreenState extends State<BlogScreen> {
               )
             ],
           ),
-          body: RefreshIndicator(
-            onRefresh: () async => _refreshNews(),
-            child: FutureBuilder<List<dynamic>>(
-              future: _newsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Нет доступных новостей',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  );
-                }
-
-                final newsList = snapshot.data!;
-                return ListView.builder(
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 16,
-                    bottom: MediaQuery.of(context).padding.bottom + 68 + 24 + 20,
-                  ),
-                  itemCount: newsList.length,
-                  itemBuilder: (context, index) {
-                    final item = newsList[index];
-                    final author = item['author'] ?? 'UZDF';
-                    return GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          GlassRoute(
-                            page: NewsDetailScreen(news: item),
-                          ),
-                        );
-                      },
-                      child: _buildNewsCard(
-                        item['title'] ?? '',
-                        item['content'] ?? '',
-                        author,
-                        item['imageUrl'],
-                        isDark,
-                      ),
+          body: LiquidBackground(
+            child: RefreshIndicator(
+              color: AppColors.accent,
+              backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+              strokeWidth: 2.0,
+              onRefresh: () async => _refreshNews(),
+              child: FutureBuilder<List<dynamic>>(
+                future: _newsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: List.generate(4, (_) => Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: LiquidGlassCard(
+                          padding: EdgeInsets.zero,
+                          child: Column(children: [
+                            const SkeletonLoader(width: double.infinity, height: 160, borderRadius: 18),
+                            Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                SkeletonLoader(width: MediaQuery.of(context).size.width * 0.7, height: 18, borderRadius: 6),
+                                const SizedBox(height: 10),
+                                const SkeletonLoader(width: double.infinity, height: 12, borderRadius: 4),
+                                const SizedBox(height: 6),
+                                SkeletonLoader(width: MediaQuery.of(context).size.width * 0.5, height: 12, borderRadius: 4),
+                              ]),
+                            ),
+                          ]),
+                        ),
+                      )),
                     );
-                  },
-                );
-              },
+                  }
+                  if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Container(
+                          width: 80, height: 80,
+                          decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
+                          child: const Icon(Icons.article_outlined, size: 36, color: AppColors.accent),
+                        ),
+                        const SizedBox(height: 16),
+                        Text('Нет доступных новостей', style: GoogleFonts.inter(color: AppColors.subtextDark, fontSize: 15)),
+                      ]),
+                    );
+                  }
+
+                  final newsList = snapshot.data!;
+                  return ListView.builder(
+                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                    padding: EdgeInsets.only(
+                      left: 16, right: 16, top: 16,
+                      bottom: MediaQuery.of(context).padding.bottom + 68 + 24 + 20,
+                    ),
+                    itemCount: newsList.length,
+                    itemBuilder: (context, index) {
+                      final item = newsList[index];
+                      final author = item['author'] ?? 'UZDF';
+                      return PressScaleWidget(
+                        scale: 0.98,
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.push(context, GlassRoute(page: NewsDetailScreen(news: item)));
+                        },
+                        child: _buildNewsCard(item['title'] ?? '', item['content'] ?? '', author, item['imageUrl'], isDark),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         );
@@ -109,31 +130,30 @@ class _BlogScreenState extends State<BlogScreen> {
   }
 
   Widget _buildNewsCard(String title, String desc, String author, String? imageUrl, bool isDark) {
-    return GlassContainer(
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+    return LiquidGlassCard(
       margin: const EdgeInsets.only(bottom: 16),
-      borderRadius: 16,
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            height: 160,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.03),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: imageUrl != null && imageUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                    child: Image.network(
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+            child: Container(
+              height: 180,
+              color: isDark ? AppColors.darkSurface2 : const Color(0xFFEBF0F7),
+              child: imageUrl != null && imageUrl.isNotEmpty
+                  ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(Icons.image_outlined, size: 48, color: isDark ? Colors.grey : Colors.grey[400]);
-                      },
+                      errorBuilder: (context, error, stackTrace) => Center(
+                        child: Icon(Icons.image_outlined, size: 48, color: AppColors.subtextDark),
+                      ),
+                    )
+                  : Center(
+                      child: Icon(Icons.article_rounded, size: 48, color: AppColors.subtextDark.withValues(alpha: 0.4)),
                     ),
-                  )
-                : Icon(Icons.image_outlined, size: 48, color: isDark ? Colors.grey : Colors.grey[400]),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(18),
@@ -142,25 +162,23 @@ class _BlogScreenState extends State<BlogScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                    color: isDark ? Colors.white : const Color(0xFF1C1C1E),
-                    letterSpacing: -0.5,
-                  ),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 17, color: textColor, letterSpacing: -0.4),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   desc,
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.grey, height: 1.5, fontWeight: FontWeight.w400),
+                  style: GoogleFonts.inter(color: AppColors.subtextDark, height: 1.5, fontSize: 13),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  author.toUpperCase(),
-                  style: const TextStyle(color: Color(0xFF007AFF), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
-                ),
+                const SizedBox(height: 14),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Text(
+                    author.toUpperCase(),
+                    style: GoogleFonts.inter(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1.0),
+                  ),
+                  Icon(Icons.arrow_forward_rounded, color: AppColors.accent, size: 16),
+                ]),
               ],
             ),
           ),

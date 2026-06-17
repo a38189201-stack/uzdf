@@ -148,17 +148,24 @@ function adminLogout() {
 }
 
 // ── NAVIGATION ──
+let systemStatusInterval = null;
+
 function showSection(name) {
   document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('section-'+name).classList.add('active');
   document.getElementById('nav-'+name).classList.add('active');
-  const titles={dashboard:'Dashboard',news:'Новости',map:'Карта зон',users:'Пользователи',courses:'Курсы',shop:'Магазин',orders:'Заказы',support:'Поддержка',tgbot:'Telegram Бот'};
+  const titles={dashboard:'Dashboard',news:'Новости',map:'Карта зон',users:'Пользователи',courses:'Курсы',shop:'Магазин',orders:'Заказы',support:'Поддержка',tgbot:'Telegram Бот',certificates:'Реестр сертификатов',system:'Системный мониторинг'};
   document.getElementById('topbar-title').textContent=titles[name]||name;
   
   if (name !== 'tgbot' && tgChatRefreshInterval) {
     clearInterval(tgChatRefreshInterval);
     tgChatRefreshInterval = null;
+  }
+
+  if (name !== 'system' && systemStatusInterval) {
+    clearInterval(systemStatusInterval);
+    systemStatusInterval = null;
   }
 
   if(name==='map') {
@@ -178,6 +185,12 @@ function showSection(name) {
     loadTgChats();
     loadTgUsers();
     loadTgLogs();
+  }
+  if(name==='certificates') loadCertificates();
+  if(name==='system') {
+    loadSystemStatus();
+    loadSystemSettings();
+    startSystemStatusPolling();
   }
 }
 
@@ -362,16 +375,31 @@ function renderUsersDashboardTable(items) {
 }
 
 let currentDetailUserId = null;
-let currentUdTab = 'courses';
+let currentUdTab = 'profile';
 let udData = null;
 
 async function viewUserDetails(userId) {
   currentDetailUserId = userId;
-  currentUdTab = 'courses';
-  document.querySelectorAll('.ud-tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.getElementById('ud-tab-courses').classList.add('active');
-  document.getElementById('ud-content-courses').style.display = 'block';
-  document.getElementById('ud-content-timeline').style.display = 'none';
+  currentUdTab = 'profile';
+  
+  // Set tab buttons initial states
+  document.querySelectorAll('.ud-tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.color = 'var(--text-muted)';
+    btn.style.borderBottom = 'none';
+    btn.style.fontWeight = 'normal';
+  });
+  
+  const profileBtn = document.getElementById('ud-tab-profile');
+  if (profileBtn) {
+    profileBtn.classList.add('active');
+    profileBtn.style.color = 'var(--text)';
+    profileBtn.style.borderBottom = '2px solid var(--blue)';
+    profileBtn.style.fontWeight = 'bold';
+  }
+  
+  document.querySelectorAll('.ud-tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById('ud-content-profile').style.display = 'block';
 
   try {
     udData = await api(`/admin/users/${userId}/detail`);
@@ -427,8 +455,13 @@ async function viewUserDetails(userId) {
       `;
     }
 
+    renderUdProfile();
     renderUdCourses();
+    renderUdOrders();
+    renderUdSupport();
+    renderUdAchievements();
     renderUdTimeline();
+    renderUdSessions();
 
     document.getElementById('user-detail-modal').style.display = 'flex';
   } catch (err) {
@@ -442,17 +475,170 @@ function closeUserDetailModal() {
 
 function switchUdTab(tab) {
   currentUdTab = tab;
-  document.querySelectorAll('.ud-tab-btn').forEach(btn => btn.classList.remove('active'));
   
-  if (tab === 'courses') {
-    document.getElementById('ud-tab-courses').classList.add('active');
-    document.getElementById('ud-content-courses').style.display = 'block';
-    document.getElementById('ud-content-timeline').style.display = 'none';
-  } else {
-    document.getElementById('ud-tab-timeline').classList.add('active');
-    document.getElementById('ud-content-courses').style.display = 'none';
-    document.getElementById('ud-content-timeline').style.display = 'block';
+  // Update tab buttons style
+  document.querySelectorAll('.ud-tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+    btn.style.color = 'var(--text-muted)';
+    btn.style.borderBottom = 'none';
+    btn.style.fontWeight = 'normal';
+  });
+  
+  const activeBtn = document.getElementById('ud-tab-' + tab);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+    activeBtn.style.color = 'var(--text)';
+    activeBtn.style.borderBottom = '2px solid var(--blue)';
+    activeBtn.style.fontWeight = 'bold';
   }
+  
+  // Update tab contents visibility
+  document.querySelectorAll('.ud-tab-content').forEach(c => c.style.display = 'none');
+  
+  const activeContent = document.getElementById('ud-content-' + tab);
+  if (activeContent) {
+    activeContent.style.display = 'block';
+  }
+}
+
+function renderUdProfile() {
+  const container = document.getElementById('ud-profile-info-container');
+  const u = udData.user;
+  
+  let blockHistory = '';
+  if (u.isBlocked) {
+    blockHistory = `
+      <div style="grid-column: 1 / -1; margin-top: 12px; padding: 12px; border-radius: 8px; border: 1px solid #EF4444; background: rgba(239,68,68,0.08)">
+        <div style="font-weight:bold; color:#EF4444; margin-bottom:4px">Информация о блокировке:</div>
+        <div><strong>Кем заблокирован:</strong> ${esc(u.blockedBy || 'Система')}</div>
+        <div><strong>Когда заблокирован:</strong> ${fmtDate(u.blockedAt)}</div>
+        <div><strong>Причина:</strong> ${esc(u.blockReason || 'Не указана')}</div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <span style="color:var(--text-dim); font-size:0.8rem">Личные данные</span>
+      <div><strong>Имя:</strong> ${esc(u.name || '—')}</div>
+      <div><strong>Email:</strong> ${esc(u.email || '—')}</div>
+      <div><strong>Телефон:</strong> ${esc(u.phone || '—')}</div>
+      <div><strong>Дата рождения:</strong> ${esc(u.dob || '—')}</div>
+      <div><strong>Страна:</strong> ${esc(u.country || '—')}</div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <span style="color:var(--text-dim); font-size:0.8rem">Игровая статистика</span>
+      <div><strong>Уровень:</strong> <span style="font-weight:bold; color:var(--blue)">Lvl ${u.level || 1}</span></div>
+      <div><strong>Опыт (EXP):</strong> ${u.exp || 0} XP</div>
+      <div><strong>Жизни:</strong> ❤️ ${u.courseLives !== undefined ? u.courseLives : 3}</div>
+      <div><strong>Язык интерфейса:</strong> ${esc((u.language || 'ru').toUpperCase())}</div>
+      <div><strong>Дата регистрации:</strong> ${fmtDate(u.createdAt)}</div>
+    </div>
+    ${blockHistory}
+  `;
+}
+
+function renderUdOrders() {
+  const container = document.getElementById('ud-orders-container');
+  const orders = udData.orders || [];
+  
+  if (!orders.length) {
+    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted)">У этого пользователя нет заказов в магазине.</div>`;
+    return;
+  }
+  
+  const badges = { PENDING: 'badge-yellow', COMPLETED: 'badge-green', CANCELLED: 'badge-red' };
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:16px">
+      ${orders.map(o => `
+        <div style="background:rgba(255,255,255,0.01); border:1px solid var(--border); padding:16px; border-radius:10px">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:12px">
+            <div>
+              <strong>Заказ #${o.id}</strong>
+              <span style="color:var(--text-muted); font-size:0.8rem; margin-left:8px">${fmtDate(o.createdAt)}</span>
+            </div>
+            <span class="badge ${badges[o.status] || 'badge-yellow'}" style="font-size:0.75rem">${o.status}</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px">
+            ${o.items.map(item => `
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem">
+                <span style="color:var(--text-dim)">${item.quantity}x ${esc(item.product?.title || 'Товар')}</span>
+                <strong>$${(item.price * item.quantity).toFixed(2)}</strong>
+              </div>
+            `).join('')}
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:8px; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:8px">
+            <span style="color:var(--text-dim); font-size:0.85rem">Итого</span>
+            <strong style="color:var(--blue); font-size:1rem">$${o.totalAmount.toFixed(2)}</strong>
+          </div>
+          <div style="font-size:0.8rem; color:var(--text-muted)">
+            <div><strong>Адрес доставки:</strong> ${esc(o.deliveryCity || '—')}, ${esc(o.deliveryAddress || '—')}</div>
+            <div><strong>Телефон получателя:</strong> ${esc(o.deliveryContact || '—')}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderUdSupport() {
+  const container = document.getElementById('ud-support-container');
+  const reqs = udData.supportRequests || [];
+  
+  if (!reqs.length) {
+    container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-muted)">Нет обращений в службу поддержки.</div>`;
+    return;
+  }
+  
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:12px">
+      ${reqs.map(r => `
+        <div style="background:rgba(255,255,255,0.01); border:1px solid var(--border); padding:16px; border-radius:10px">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+            <span style="font-size:0.8rem; color:var(--text-muted)">${fmtDate(r.createdAt)} (ID: #${r.id})</span>
+            <span class="badge ${r.status === 'RESOLVED' ? 'badge-green' : 'badge-yellow'}" style="font-size:0.75rem">${r.status === 'RESOLVED' ? 'Решен' : 'Ожидает'}</span>
+          </div>
+          <div style="font-size:0.9rem; white-space:pre-wrap; color:var(--text)">${esc(r.message)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderUdAchievements() {
+  const container = document.getElementById('ud-achievements-container');
+  const unlocked = new Set(udData.achievements ? udData.achievements.map(a => a.achievementId) : []);
+  
+  const achievementsList = [
+    { id: 'first_steps', name: 'Первые шаги', desc: 'Начать обучение на первом курсе', icon: '🚀' },
+    { id: 'theory_master', name: 'Мастер теории', desc: 'Пройти все теоретические уроки', icon: '🎓' },
+    { id: 'certified_pilot', name: 'Сертифицированный пилот', desc: 'Успешно сдать финальный экзамен', icon: '🏆' },
+    { id: 'shop_purchase', name: 'Покупатель UZDF', desc: 'Совершить покупку в магазине оборудования', icon: '👑' }
+  ];
+
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px">
+      ${achievementsList.map(a => {
+        const isUnlocked = unlocked.has(a.id);
+        const userAch = udData.achievements ? udData.achievements.find(ua => ua.achievementId === a.id) : null;
+        const unlockedDate = userAch ? fmtDate(userAch.unlockedAt) : '';
+        
+        return `
+          <div style="background:rgba(255,255,255,0.01); border:1px solid ${isUnlocked ? 'rgba(0,102,255,0.3)' : 'var(--border)'}; opacity:${isUnlocked ? '1' : '0.5'}; padding:16px; border-radius:10px; display:flex; gap:16px; align-items:center">
+            <div style="font-size:2rem; width:50px; height:50px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.03); border-radius:50%">
+              ${a.icon}
+            </div>
+            <div>
+              <div style="font-weight:bold; color:var(--text)">${a.name}</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin:2px 0">${a.desc}</div>
+              ${isUnlocked ? `<div style="font-size:0.75rem; color:var(--success)">Получено: ${unlockedDate}</div>` : `<div style="font-size:0.75rem; color:var(--text-dim)">Заблокировано</div>`}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 function renderUdCourses() {
@@ -1363,7 +1549,7 @@ function renderOrdersTable() {
     return;
   }
   document.getElementById('orders-table-body').innerHTML=`
-    <table><thead><tr><th>ID</th><th>Клиент</th><th>Сумма</th><th>Статус</th><th>Дата</th><th>Действия</th></tr></thead>
+    <table><thead><tr><th>ID</th><th>Клиент</th><th>Сумма</th><th>Статус</th><th>Адрес доставки</th><th>Дата</th><th>Действия</th></tr></thead>
     <tbody>${items.map(o=>`
       <tr>
         <td><strong>#${o.id}</strong></td>
@@ -1373,6 +1559,13 @@ function renderOrdersTable() {
         </td>
         <td><strong>$${o.totalAmount.toFixed(2)}</strong></td>
         <td><span class="badge ${o.status==='COMPLETED'?'badge-green':o.status==='CANCELLED'?'badge-red':'badge-yellow'}">${o.status}</span></td>
+        <td>
+          ${(o.deliveryCity || o.deliveryAddress || o.deliveryContact) ? `
+            <div style="font-weight:600">${esc(o.deliveryCity || '—')}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted)">${esc(o.deliveryAddress || '—')}</div>
+            <div style="font-size:0.8rem;color:var(--text-muted)">Тел: ${esc(o.deliveryContact || '—')}</div>
+          ` : `<span style="color:var(--text-dim)">Не указан</span>`}
+        </td>
         <td style="color:var(--text-muted)">${fmtDate(o.createdAt)}</td>
         <td>
           <select style="background:var(--bg-card2);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px" onchange="changeOrderStatus(${o.id}, this.value)">
@@ -1906,4 +2099,354 @@ function clearTgLogFilter() {
 function downloadTgLogs() {
   window.open(`${API}/admin/bot/logs/download?token=${token}`, '_blank');
 }
+
+function exportUsersCSV() {
+  const t = localStorage.getItem('uzdf_token');
+  window.open(`${API}/admin/users/export?token=${t}`, '_blank');
+}
+
+function exportOrdersCSV() {
+  const t = localStorage.getItem('uzdf_token');
+  window.open(`${API}/admin/orders/export?token=${t}`, '_blank');
+}
+
+function openTgBroadcastModal() {
+  document.getElementById('tg-broadcast-text').value = '';
+  document.getElementById('tg-broadcast-alert').innerHTML = '';
+  document.getElementById('tg-broadcast-modal').style.display = 'flex';
+}
+
+function closeTgBroadcastModal() {
+  document.getElementById('tg-broadcast-modal').style.display = 'none';
+}
+
+async function sendTgBroadcast() {
+  const text = document.getElementById('tg-broadcast-text').value.trim();
+  const alertDiv = document.getElementById('tg-broadcast-alert');
+  
+  if (!text) {
+    alertDiv.innerHTML = `<div class="alert alert-error" style="background:rgba(239,68,68,0.15);border:1px solid #EF4444;color:#EF4444;padding:12px;border-radius:8px;margin-bottom:12px">Текст сообщения не может быть пустым</div>`;
+    return;
+  }
+  
+  if (!confirm('Вы действительно хотите запустить рассылку для всех подписчиков бота?')) return;
+  
+  try {
+    alertDiv.innerHTML = `<div class="alert alert-warning" style="background:rgba(245,158,11,0.15);border:1px solid #F59E0B;color:#F59E0B;padding:12px;border-radius:8px;margin-bottom:12px">Идет запуск рассылки... Пожалуйста, не закрывайте окно.</div>`;
+    const res = await api('/admin/bot/broadcast', {
+      method: 'POST',
+      body: JSON.stringify({ text })
+    });
+    
+    alertDiv.innerHTML = `<div class="alert alert-success" style="background:rgba(16,185,129,0.15);border:1px solid #10B981;color:#10B981;padding:12px;border-radius:8px;margin-bottom:12px">Успешно отправлено! Сообщение доставлено ${res.count} пользователям.</div>`;
+    setTimeout(() => {
+      closeTgBroadcastModal();
+    }, 2500);
+  } catch (err) {
+    alertDiv.innerHTML = `<div class="alert alert-error" style="background:rgba(239,68,68,0.15);border:1px solid #EF4444;color:#EF4444;padding:12px;border-radius:8px;margin-bottom:12px">${err.message}</div>`;
+  }
+}
+
+// ─────────────────────────────────────────────
+// CERTIFICATE MANAGEMENT FUNCTIONS
+// ─────────────────────────────────────────────
+let allCertificates = [];
+
+async function loadCertificates() {
+  try {
+    const tbody = document.getElementById('certificates-table-body');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 24px;"><div class="loading"><div class="spinner"></div><span>Загрузка сертификатов...</span></div></td></tr>';
+    
+    allCertificates = await api('/admin/certificates');
+    renderCertificatesTable(allCertificates);
+  } catch (err) {
+    console.error('Error loading certificates:', err);
+    showToast('Не удалось загрузить сертификаты', 'error');
+  }
+}
+
+function renderCertificatesTable(items) {
+  const tbody = document.getElementById('certificates-table-body');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-muted);">Сертификаты не найдены</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(c => {
+    const score = c.finalScore !== null ? `${c.finalScore.toFixed(1)}%` : '—';
+    const issueDate = c.certificateIssuedAt ? fmtDate(c.certificateIssuedAt) : '—';
+    
+    let statusBadge = '<span class="badge badge-green">Действителен</span>';
+    let actionBtn = `<button class="btn btn-danger btn-sm" onclick="revokeCertificateAction('${c.certificateUuid}')">Аннулировать</button>`;
+    
+    if (c.isRevoked) {
+      statusBadge = `<span class="badge badge-red" title="Причина: ${esc(c.revokeReason || '')}">Отозван</span>`;
+      actionBtn = `<button class="btn btn-success btn-sm" onclick="activateCertificateAction('${c.certificateUuid}')">Активировать</button>`;
+    }
+
+    return `
+      <tr>
+        <td>
+          <div style="font-weight: 600;">${esc(c.userName)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">${esc(c.userEmail)}</div>
+        </td>
+        <td><strong>${esc(c.courseTitle)}</strong></td>
+        <td>${issueDate}</td>
+        <td><strong style="color: var(--green);">${score}</strong></td>
+        <td><code style="font-size:0.8rem; color: var(--text-dim);">${c.certificateUuid}</code></td>
+        <td>${statusBadge}</td>
+        <td>${actionBtn}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterCertificates() {
+  const query = document.getElementById('cert-search').value.toLowerCase().trim();
+  const status = document.getElementById('cert-filter-status').value;
+
+  const filtered = allCertificates.filter(c => {
+    // 1. Search Query
+    const nameMatch = c.userName.toLowerCase().includes(query);
+    const emailMatch = c.userEmail.toLowerCase().includes(query);
+    const courseMatch = c.courseTitle.toLowerCase().includes(query);
+    const uuidMatch = c.certificateUuid.toLowerCase().includes(query);
+    const matchesQuery = nameMatch || emailMatch || courseMatch || uuidMatch;
+
+    // 2. Status Filter
+    let matchesStatus = true;
+    if (status === 'active') matchesStatus = !c.isRevoked;
+    if (status === 'revoked') matchesStatus = c.isRevoked;
+
+    return matchesQuery && matchesStatus;
+  });
+
+  renderCertificatesTable(filtered);
+}
+
+async function revokeCertificateAction(uuid) {
+  const reason = prompt('Укажите причину аннулирования сертификата:');
+  if (reason === null) return; // cancel clicked
+  const cleanReason = reason.trim();
+  if (!cleanReason) {
+    showToast('Причина аннулирования обязательна', 'error');
+    return;
+  }
+
+  try {
+    await api(`/admin/certificates/${uuid}/revoke`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: cleanReason })
+    });
+    showToast('Сертификат успешно аннулирован', 'success');
+    loadCertificates();
+  } catch (err) {
+    showToast(err.message || 'Ошибка аннулирования сертификата', 'error');
+  }
+}
+
+async function activateCertificateAction(uuid) {
+  if (!confirm('Вы действительно хотите повторно активировать этот сертификат?')) return;
+  try {
+    await api(`/admin/certificates/${uuid}/activate`, {
+      method: 'POST'
+    });
+    showToast('Сертификат успешно активирован', 'success');
+    loadCertificates();
+  } catch (err) {
+    showToast(err.message || 'Ошибка активации сертификата', 'error');
+  }
+}
+
+// ─────────────────────────────────────────────
+// SYSTEM MONITORING FUNCTIONS
+// ─────────────────────────────────────────────
+async function loadSystemStatus() {
+  try {
+    const s = await api('/admin/system-status');
+    
+    // Update dashboard gauges
+    document.getElementById('sys-cpu-val').textContent = `${s.cpuLoadPercent}%`;
+    document.getElementById('sys-ram-val').textContent = `${s.ramUsagePercent}%`;
+    document.getElementById('sys-db-val').textContent = `${s.dbLatencyMs} ms`;
+    
+    const botStatus = document.getElementById('sys-bot-status-val');
+    const botIcon = document.getElementById('sys-bot-status-icon');
+    if (s.isBotRunning) {
+      botStatus.textContent = 'Активен';
+      botStatus.style.color = '#10B981';
+      botIcon.style.background = 'rgba(16, 185, 129, 0.1)';
+      botIcon.style.color = '#10B981';
+    } else {
+      botStatus.textContent = 'Остановлен';
+      botStatus.style.color = '#EF4444';
+      botIcon.style.background = 'rgba(239, 68, 68, 0.1)';
+      botIcon.style.color = '#EF4444';
+    }
+
+    // Update spec details
+    document.getElementById('sys-platform').textContent = `${s.platform} (${s.release})`;
+    document.getElementById('sys-uptime-os').textContent = formatUptime(s.sysUptimeSeconds);
+    document.getElementById('sys-uptime-node').textContent = formatUptime(s.nodeUptimeSeconds);
+    
+    const mbUsed = (s.nodeMemory.heapUsedBytes / 1024 / 1024).toFixed(1);
+    const mbTotal = (s.nodeMemory.heapTotalBytes / 1024 / 1024).toFixed(1);
+    document.getElementById('sys-node-mem').textContent = `${mbUsed} MB / ${mbTotal} MB`;
+
+  } catch (err) {
+    console.error('Error fetching system status:', err);
+  }
+}
+
+function startSystemStatusPolling() {
+  if (systemStatusInterval) clearInterval(systemStatusInterval);
+  systemStatusInterval = setInterval(loadSystemStatus, 5000);
+}
+
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / (3600*24));
+  const h = Math.floor((seconds % (3600*24)) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+
+  const parts = [];
+  if (d > 0) parts.push(`${d}д`);
+  if (h > 0) parts.push(`${h}ч`);
+  if (m > 0) parts.push(`${m}м`);
+  parts.push(`${s}с`);
+  return parts.join(' ');
+}
+
+async function restartTelegramBotAction() {
+  if (!confirm('Вы уверены, что хотите перезапустить Telegram-бота поддержки?')) return;
+  try {
+    showToast('Отправка команды перезапуска...', 'info');
+    await api('/admin/bot/restart', { method: 'POST' });
+    showToast('Telegram бот успешно перезапущен', 'success');
+    loadSystemStatus();
+  } catch (err) {
+    showToast(err.message || 'Не удалось перезапустить бота', 'error');
+  }
+}
+
+async function loadSystemSettings() {
+  try {
+    const settings = await api('/admin/settings');
+    document.getElementById('setting-screenshot-threshold').value = settings.screenshotBlockThreshold;
+    document.getElementById('setting-screenshot-duration').value = settings.screenshotBlockDurationHours;
+    document.getElementById('setting-admin-chatid').value = settings.telegramAdminChatId;
+  } catch (err) {
+    showToast('Не удалось загрузить настройки безопасности', 'error');
+  }
+}
+
+async function saveSystemSettingsAction(e) {
+  e.preventDefault();
+  const threshold = parseInt(document.getElementById('setting-screenshot-threshold').value);
+  const duration = parseInt(document.getElementById('setting-screenshot-duration').value);
+  const chatId = document.getElementById('setting-admin-chatid').value.trim();
+
+  try {
+    await api('/admin/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        screenshotBlockThreshold: threshold,
+        screenshotBlockDurationHours: duration,
+        telegramAdminChatId: chatId
+      })
+    });
+    showToast('Параметры безопасности успешно сохранены', 'success');
+  } catch (err) {
+    showToast(err.message || 'Ошибка сохранения настроек', 'error');
+  }
+}
+
+// ─────────────────────────────────────────────
+// USER DEVICE SESSIONS FUNCTIONS
+// ─────────────────────────────────────────────
+function renderUdSessions() {
+  const container = document.getElementById('ud-sessions-container');
+  if (!container) return;
+  if (!udData || !udData.sessions || !udData.sessions.length) {
+    container.innerHTML = '<p style="color:var(--text-muted); text-align:center; padding:16px;">Нет активных сессий</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      ${udData.sessions.map(s => {
+        const isCurrent = s.token === token;
+        
+        let device = 'Неизвестное устройство';
+        let browser = '';
+        const ua = s.userAgent || '';
+        
+        if (ua.includes('Windows')) device = '🖥️ Windows PC';
+        else if (ua.includes('iPhone') || ua.includes('iPad')) device = '📱 iOS Device';
+        else if (ua.includes('Android')) device = '📱 Android Device';
+        else if (ua.includes('Macintosh')) device = '🖥️ macOS Device';
+        else if (ua.includes('Linux')) device = '🖥️ Linux Device';
+
+        if (ua.includes('Chrome')) browser = 'Chrome';
+        else if (ua.includes('Firefox')) browser = 'Firefox';
+        else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+        else if (ua.includes('Edge')) browser = 'Edge';
+        
+        const details = [device, browser, s.ipAddress].filter(Boolean).join(' • ');
+
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); padding:14px 18px; border-radius:10px;">
+            <div>
+              <div style="font-weight:600; color:var(--text)">
+                ${esc(details)}
+                ${isCurrent ? '<span class="badge badge-green" style="margin-left:8px; text-transform:none; font-size:0.7rem;">Текущая сессия</span>' : ''}
+              </div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin-top:4px;">
+                Активна: ${fmtDate(s.lastActive)} (Создана: ${fmtDate(s.createdAt)})
+              </div>
+            </div>
+            <div>
+              ${isCurrent ? '' : `<button class="btn btn-danger btn-sm" onclick="revokeSessionAction(${s.id})">Завершить</button>`}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+async function revokeSessionAction(sessionId) {
+  if (!confirm('Вы действительно хотите принудительно завершить сессию на этом устройстве? Пользователю придется войти заново.')) return;
+  try {
+    await api(`/admin/sessions/${sessionId}/revoke`, { method: 'POST' });
+    showToast('Сессия успешно завершена', 'success');
+    
+    // Refresh modal data
+    if (udData && udData.user) {
+      const refreshed = await api(`/admin/users/${udData.user.id}/detail`);
+      udData.sessions = refreshed.sessions;
+      renderUdSessions();
+    }
+  } catch (err) {
+    showToast(err.message || 'Не удалось завершить сессию', 'error');
+  }
+}
+
+async function revokeAllSessionsAction() {
+  if (!confirm('Вы действительно хотите завершить ВСЕ активные сессии пользователя (включая текущую)? Он будет отключен со всех устройств.')) return;
+  try {
+    await api(`/admin/users/${udData.user.id}/sessions/revoke-all`, { method: 'POST' });
+    showToast('Все сессии пользователя завершены', 'success');
+    
+    // Refresh modal data
+    if (udData && udData.user) {
+      const refreshed = await api(`/admin/users/${udData.user.id}/detail`);
+      udData.sessions = refreshed.sessions;
+      renderUdSessions();
+    }
+  } catch (err) {
+    showToast(err.message || 'Не удалось завершить сессии', 'error');
+  }
+}
+
 

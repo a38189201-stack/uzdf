@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'app_state.dart';
 import 'api_service.dart';
 import 'glass_widgets.dart';
@@ -59,14 +60,26 @@ class _StoreScreenState extends State<StoreScreen> {
               future: _productsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.7,
+                    ),
+                    itemCount: 6,
+                    itemBuilder: (context, index) => const SkeletonLoader(width: double.infinity, height: double.infinity, borderRadius: 18),
+                  );
                 }
                 if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Нет доступных товаров',
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                  return Center(
+                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
+                        child: const Icon(Icons.shopping_bag_outlined, size: 36, color: AppColors.accent),
+                      ),
+                      const SizedBox(height: 16),
+                      Text('Нет доступных товаров', style: GoogleFonts.inter(color: AppColors.subtextDark, fontSize: 15)),
+                    ]),
                   );
                 }
 
@@ -151,9 +164,16 @@ class _StoreScreenState extends State<StoreScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  AviationBadge(
-                                    text: inStock ? state.translate('shop_in_stock') : state.translate('shop_out_of_stock'),
-                                    color: inStock ? const Color(0xFF00E676) : const Color(0xFFFF1744),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: (inStock ? AppColors.success : AppColors.danger).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(5),
+                                    ),
+                                    child: Text(
+                                      inStock ? state.translate('shop_in_stock') : state.translate('shop_out_of_stock'),
+                                      style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: inStock ? AppColors.success : AppColors.danger),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -277,9 +297,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        AviationBadge(
-                          text: inStock ? '${state.translate('shop_in_stock')} ($stock шт.)' : state.translate('shop_out_of_stock'),
-                          color: inStock ? const Color(0xFF00E676) : const Color(0xFFFF1744),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (inStock ? AppColors.success : AppColors.danger).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            inStock ? '${state.translate('shop_in_stock')} ($stock шт.)' : state.translate('shop_out_of_stock'),
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: inStock ? AppColors.success : AppColors.danger),
+                          ),
                         ),
                       ],
                     ),

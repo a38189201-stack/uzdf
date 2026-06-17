@@ -24,6 +24,8 @@ model User {
   exp          Int               @default(0)
   level        Int               @default(1)
   achievements UserAchievement[]
+  dob          String?
+  country      String?
 
   // Course lives system (hearts ❤️)
   courseLives     Int       @default(3)
@@ -41,6 +43,7 @@ model User {
   courseBlocks   UserCourseBlock[]
   violations     ScreenshotViolation[]
   telegramReplies TelegramMessage[]   @relation("AdminReplies")
+  sessions       Session[]
 }
 
 model Zone {
@@ -123,9 +126,12 @@ model Order {
   userId      Int
   user        User        @relation(fields: [userId], references: [id])
   totalAmount Float
-  status      String      @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  status          String      @default("PENDING") // PENDING, COMPLETED, CANCELLED
   createdAt   DateTime    @default(now())
   items       OrderItem[]
+  deliveryAddress String?
+  deliveryCity    String?
+  deliveryContact String?
 }
 
 model OrderItem {
@@ -159,6 +165,10 @@ model CourseCompletion {
   certificateUuid          String?           @unique
   finalScore               Float?
   lessonsCompletionPercent Float?
+  isRevoked                Boolean           @default(false)
+  revokedAt                DateTime?
+  revokedBy                String?
+  revokeReason             String?
 
   @@unique([userId, courseId])
 }
@@ -275,4 +285,22 @@ model TelegramBotLog {
   level     String
   message   String
   createdAt DateTime @default(now())
+}
+
+model Session {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastActive DateTime @default(now())
+  isRevoked  Boolean  @default(false)
+}
+
+model SystemSetting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
 }

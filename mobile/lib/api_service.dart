@@ -370,6 +370,30 @@ class ApiService {
     return false;
   }
 
+  static Future<Map<String, dynamic>> changePassword(String oldPassword, String newPassword) async {
+    if (token == null) return {'error': 'Not authorized'};
+    try {
+      final url = await getBaseUrl();
+      final response = await http.post(
+        Uri.parse('$url/auth/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'oldPassword': oldPassword, 'newPassword': newPassword}),
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true};
+      } else {
+        return {'error': data['error'] ?? 'Ошибка при смене пароля'};
+      }
+    } catch (e) {
+      debugPrint('Change password error: $e');
+      return {'error': e.toString()};
+    }
+  }
+
   static Future<bool> sendSupportRequest(String message) async {
     try {
       final url = await getBaseUrl();
@@ -630,6 +654,23 @@ class ApiService {
       }
     } catch (e) {
       debugPrint('Error fetching orders: $e');
+    }
+    return [];
+  }
+
+  static Future<List<dynamic>> fetchCompletions() async {
+    if (token == null) return [];
+    try {
+      final url = await getBaseUrl();
+      final response = await http.get(
+        Uri.parse('$url/courses/completions/me'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as List<dynamic>;
+      }
+    } catch (e) {
+      debugPrint('Error fetching completions: $e');
     }
     return [];
   }

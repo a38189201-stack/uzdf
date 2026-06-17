@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'glass_widgets.dart';
 import 'api_service.dart';
+import 'app_state.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -20,6 +21,13 @@ class _MapScreenState extends State<MapScreen> {
   bool _isWeatherPanelOpen = false;
   bool _isWeatherLoaded = false;
   Map<String, dynamic>? _weatherData;
+  GoogleMapController? _mapController;
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
 
   // Tashkent coordinates
   static const LatLng _initialCenter = LatLng(41.2995, 69.2401);
@@ -398,15 +406,24 @@ class _MapScreenState extends State<MapScreen> {
         children: [
           _isLoading
               ? Center(child: CircularProgressIndicator(color: colorScheme.primary))
-              : GoogleMap(
-                  initialCameraPosition: const CameraPosition(
-                    target: _initialCenter,
-                    zoom: 11.5,
-                  ),
-                  polygons: _polygons,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
+              : ValueListenableBuilder<bool>(
+                  valueListenable: AppState().isDarkMode,
+                  builder: (context, isDark, _) {
+                    return GoogleMap(
+                      initialCameraPosition: const CameraPosition(
+                        target: _initialCenter,
+                        zoom: 11.5,
+                      ),
+                      style: isDark ? _darkMapStyle : '[]',
+                      polygons: _polygons,
+                      myLocationEnabled: true,
+                      myLocationButtonEnabled: false,
+                      zoomControlsEnabled: false,
+                      onMapCreated: (controller) {
+                        _mapController = controller;
+                      },
+                    );
+                  },
                 ),
 
           // Weather floating button over map

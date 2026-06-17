@@ -64,6 +64,12 @@
       <button class="sidebar-item" onclick="showSection('tgbot')" id="nav-tgbot">
         <span class="sidebar-icon">🤖</span> Telegram Бот
       </button>
+      <button class="sidebar-item" onclick="showSection('certificates')" id="nav-certificates">
+        <span class="sidebar-icon">🎓</span> Сертификаты
+      </button>
+      <button class="sidebar-item" onclick="showSection('system')" id="nav-system">
+        <span class="sidebar-icon">🖥️</span> Система
+      </button>
     </nav>
     <div class="sidebar-footer">
       <div class="sidebar-user">
@@ -87,12 +93,12 @@
     <!-- DASHBOARD -->
     <div class="admin-section active" id="section-dashboard">
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-icon stat-icon-blue">👥</div><div><div class="stat-num" id="s-users">—</div><div class="stat-label">Пользователей</div></div></div>
-        <div class="stat-card"><div class="stat-icon stat-icon-cyan">📰</div><div><div class="stat-num" id="s-news">—</div><div class="stat-label">Новостей</div></div></div>
-        <div class="stat-card"><div class="stat-icon stat-icon-green">📚</div><div><div class="stat-num" id="s-courses">—</div><div class="stat-label">Курсов</div></div></div>
-        <div class="stat-card"><div class="stat-icon stat-icon-orange">🗺</div><div><div class="stat-num" id="s-zones">—</div><div class="stat-label">Зон на карте</div></div></div>
-        <div class="stat-card"><div class="stat-icon stat-icon-blue">🛒</div><div><div class="stat-num" id="s-products">—</div><div class="stat-label">Товаров</div></div></div>
-        <div class="stat-card"><div class="stat-icon stat-icon-orange">📦</div><div><div class="stat-num" id="s-orders">—</div><div class="stat-label">Заказов</div></div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="showSection('users')"><div class="stat-icon stat-icon-blue">👥</div><div><div class="stat-num" id="s-users">—</div><div class="stat-label">Пользователей</div></div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="showSection('news')"><div class="stat-icon stat-icon-cyan">📰</div><div><div class="stat-num" id="s-news">—</div><div class="stat-label">Новостей</div></div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="showSection('courses')"><div class="stat-icon stat-icon-green">📚</div><div><div class="stat-num" id="s-courses">—</div><div class="stat-label">Курсов</div></div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="showSection('map')"><div class="stat-icon stat-icon-orange">🗺</div><div><div class="stat-num" id="s-zones">—</div><div class="stat-label">Зон на карте</div></div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="showSection('shop')"><div class="stat-icon stat-icon-blue">🛒</div><div><div class="stat-num" id="s-products">—</div><div class="stat-label">Товаров</div></div></div>
+        <div class="stat-card" style="cursor:pointer" onclick="showSection('orders')"><div class="stat-icon stat-icon-orange">📦</div><div><div class="stat-num" id="s-orders">—</div><div class="stat-label">Заказов</div></div></div>
         <div class="stat-card"><div class="stat-icon stat-icon-green">💰</div><div><div class="stat-num" id="s-revenue">—</div><div class="stat-label">Выручка ($)</div></div></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:16px">
@@ -177,6 +183,7 @@
           <h3>Активные пользователи курсов</h3>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
             <input class="search-input" id="users-search" placeholder="Поиск по имени/email..." oninput="loadUsersDashboard()">
+            <button class="btn btn-secondary btn-sm" onclick="exportUsersCSV()" style="background:#10B981; border-color:#10B981">📥 Экспорт CSV</button>
             <select id="users-role-filter" class="search-input" style="width:auto" onchange="loadUsersDashboard()">
               <option value="ALL">Все роли</option>
               <option value="user">Пользователь (user)</option>
@@ -260,7 +267,10 @@
       <div class="table-wrap">
         <div class="table-header">
           <h3>Управление заказами</h3>
-          <input class="search-input" id="orders-search" placeholder="Поиск по ID или email..." oninput="filterOrders()">
+          <div style="display:flex;gap:10px;align-items:center">
+            <input class="search-input" id="orders-search" placeholder="Поиск по ID или email..." oninput="filterOrders()">
+            <button class="btn btn-secondary btn-sm" onclick="exportOrdersCSV()" style="background:#10B981; border-color:#10B981">📥 Экспорт CSV</button>
+          </div>
         </div>
         <div id="orders-table-body"><div class="loading"><div class="spinner"></div><span>Загрузка...</span></div></div>
       </div>
@@ -347,16 +357,19 @@
         <!-- Detail Work Area -->
         <div class="table-wrap" style="padding: 20px; display: flex; flex-direction: column; height: 100%;">
           <!-- Sub-tabs -->
-          <div class="tg-tabs-bar">
-            <button class="tg-tab-btn active" id="tg-tab-btn-chat" onclick="switchTgBotTab('chat')">
-              <span class="tg-tab-icon">💬</span> Чат
-            </button>
-            <button class="tg-tab-btn" id="tg-tab-btn-users" onclick="switchTgBotTab('users')">
-              <span class="tg-tab-icon">👥</span> Пользователи
-            </button>
-            <button class="tg-tab-btn" id="tg-tab-btn-logs" onclick="switchTgBotTab('logs')">
-              <span class="tg-tab-icon">📋</span> Логи
-            </button>
+          <div class="tg-tabs-bar" style="display:flex; justify-content:space-between; align-items:center; width:100%">
+            <div style="display:flex; gap:10px">
+              <button class="tg-tab-btn active" id="tg-tab-btn-chat" onclick="switchTgBotTab('chat')">
+                <span class="tg-tab-icon">💬</span> Чат
+              </button>
+              <button class="tg-tab-btn" id="tg-tab-btn-users" onclick="switchTgBotTab('users')">
+                <span class="tg-tab-icon">👥</span> Пользователи
+              </button>
+              <button class="tg-tab-btn" id="tg-tab-btn-logs" onclick="switchTgBotTab('logs')">
+                <span class="tg-tab-icon">📋</span> Логи
+              </button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openTgBroadcastModal()" style="background:#8B5CF6; border-color:#8B5CF6">📢 Глобальная рассылка</button>
           </div>
 
           <!-- TAB CONTENT: CHAT -->
@@ -428,6 +441,126 @@
         </div>
       </div>
     </div>
+
+    <!-- CERTIFICATES SECTION -->
+    <div class="admin-section" id="section-certificates">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>🎓 Реестр цифровых сертификатов</h3>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <select id="cert-filter-status" class="search-input" style="width: 160px;" onchange="filterCertificates()">
+              <option value="all">Все статусы</option>
+              <option value="active">✅ Действительны</option>
+              <option value="revoked">❌ Отозваны</option>
+            </select>
+            <input type="text" class="search-input" id="cert-search" placeholder="Поиск пилота или курса..." oninput="filterCertificates()">
+          </div>
+        </div>
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Выпускник</th>
+                <th>Курс / Квалификация</th>
+                <th>Дата выдачи</th>
+                <th>Балл</th>
+                <th>UUID Сертификата</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="certificates-table-body">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 24px; color: var(--text-muted);">Загрузка сертификатов...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SYSTEM HEALTH MONITORING SECTION -->
+    <div class="admin-section" id="section-system">
+      <!-- Performance Cards Row -->
+      <div class="stats-grid" style="margin-bottom: 20px;">
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: #10B981;">📈</div>
+          <div>
+            <div class="stat-num" id="sys-cpu-val">—</div>
+            <div class="stat-label">Загрузка CPU</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3B82F6;">🧠</div>
+          <div>
+            <div class="stat-num" id="sys-ram-val">—</div>
+            <div class="stat-label">Используемая RAM</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #F59E0B;">⚡</div>
+          <div>
+            <div class="stat-num" id="sys-db-val">—</div>
+            <div class="stat-label">Пинг БД (Latency)</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" id="sys-bot-status-icon" style="background: rgba(16, 185, 129, 0.1); color: #10B981;">🤖</div>
+          <div>
+            <div class="stat-num" id="sys-bot-status-val">—</div>
+            <div class="stat-label">Telegram Бот</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail Info and Settings Row -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 20px;">
+        <!-- Technical Details and Bot control -->
+        <div class="table-wrap" style="padding: 24px;">
+          <h3 style="margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">🖥️ Спецификации сервера и Uptime</h3>
+          
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem; margin-bottom: 24px;">
+            <div><strong>Платформа:</strong> <span id="sys-platform">—</span></div>
+            <div><strong>Аптайм системы (OS):</strong> <span id="sys-uptime-os">—</span></div>
+            <div><strong>Аптайм Node.js:</strong> <span id="sys-uptime-node">—</span></div>
+            <div><strong>Память Node.js (Heap Used / Total):</strong> <span id="sys-node-mem">—</span></div>
+          </div>
+
+          <h3 style="margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">🤖 Управление процессами</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.4;">
+            Если Telegram бот поддержки перестал отвечать на команды или завис из-за проблем соединения с API Telegram, вы можете безопасно перезапустить его процесс.
+          </p>
+          <button class="btn btn-primary" onclick="restartTelegramBotAction()">🔄 Перезапустить Telegram бота</button>
+        </div>
+
+        <!-- Security and Automation Parameters -->
+        <div class="table-wrap" style="padding: 24px;">
+          <h3 style="margin-top: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">⚙️ Параметры безопасности и авто-блокировки</h3>
+          
+          <form id="sys-settings-form" onsubmit="saveSystemSettingsAction(event)" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted);">Лимит скриншотов до авто-блокировки</label>
+              <input type="number" id="setting-screenshot-threshold" class="search-input" style="width: 100%;" min="1" max="50" required>
+              <span style="font-size: 0.75rem; color: var(--text-dim);">Количество скриншотов в одном курсе, после которого доступ пользователя автоматически блокируется.</span>
+            </div>
+
+            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted);">Продолжительность авто-блокировки (часы)</label>
+              <input type="number" id="setting-screenshot-duration" class="search-input" style="width: 100%;" min="1" max="720" required>
+              <span style="font-size: 0.75rem; color: var(--text-dim);">Срок действия временной блокировки доступа к курсу при срабатывании защиты (в часах).</span>
+            </div>
+
+            <div class="form-group" style="display: flex; flex-direction: column; gap: 6px;">
+              <label style="font-weight: 600; font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted);">Telegram Chat ID администратора (оповещения)</label>
+              <input type="text" id="setting-admin-chatid" class="search-input" style="width: 100%;" required>
+              <span style="font-size: 0.75rem; color: var(--text-dim);">Уникальный ID чата (или группы), куда будут приходить мгновенные алерты о блокировках и фроде.</span>
+            </div>
+
+            <button type="submit" class="btn btn-blue" style="align-self: flex-start;">Сохранить параметры</button>
+          </form>
+        </div>
+      </div>
+    </div>
   </main>
 </div>
 
@@ -476,17 +609,48 @@
         </div>
       </div>
       
-      <div class="ud-tabs" style="display:flex; gap:12px; border-bottom:1px solid var(--border); margin-bottom:16px">
-        <button class="ud-tab-btn active" onclick="switchUdTab('courses')" id="ud-tab-courses" style="background:none; border:none; color:var(--text); padding:8px 16px; font-weight:bold; border-bottom:2px solid var(--blue); cursor:pointer">Прогресс по курсам</button>
-        <button class="ud-tab-btn" onclick="switchUdTab('timeline')" id="ud-tab-timeline" style="background:none; border:none; color:var(--text-muted); padding:8px 16px; cursor:pointer">История активности</button>
+      <div class="ud-tabs" style="display:flex; gap:8px; border-bottom:1px solid var(--border); margin-bottom:16px; flex-wrap:wrap">
+        <button class="ud-tab-btn active" onclick="switchUdTab('profile')" id="ud-tab-profile" style="background:none; border:none; color:var(--text); padding:8px 12px; font-weight:bold; border-bottom:2px solid var(--blue); cursor:pointer">Профиль</button>
+        <button class="ud-tab-btn" onclick="switchUdTab('courses')" id="ud-tab-courses" style="background:none; border:none; color:var(--text-muted); padding:8px 12px; cursor:pointer">Прогресс курсов</button>
+        <button class="ud-tab-btn" onclick="switchUdTab('orders')" id="ud-tab-orders" style="background:none; border:none; color:var(--text-muted); padding:8px 12px; cursor:pointer">Заказы</button>
+        <button class="ud-tab-btn" onclick="switchUdTab('support')" id="ud-tab-support" style="background:none; border:none; color:var(--text-muted); padding:8px 12px; cursor:pointer">Служба поддержки</button>
+        <button class="ud-tab-btn" onclick="switchUdTab('achievements')" id="ud-tab-achievements" style="background:none; border:none; color:var(--text-muted); padding:8px 12px; cursor:pointer">Достижения</button>
+        <button class="ud-tab-btn" onclick="switchUdTab('timeline')" id="ud-tab-timeline" style="background:none; border:none; color:var(--text-muted); padding:8px 12px; cursor:pointer">История активности</button>
+        <button class="ud-tab-btn" onclick="switchUdTab('sessions')" id="ud-tab-sessions" style="background:none; border:none; color:var(--text-muted); padding:8px 12px; cursor:pointer">Сессии и Устройства</button>
       </div>
 
-      <div class="ud-tab-content" id="ud-content-courses">
+      <div class="ud-tab-content" id="ud-content-profile">
+        <div id="ud-profile-info-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; background:var(--bg-card2); padding:20px; border-radius:12px; border:1px solid var(--border); margin-bottom:20px">
+          <!-- Profile details will go here -->
+        </div>
+      </div>
+
+      <div class="ud-tab-content" id="ud-content-courses" style="display:none">
         <div id="ud-courses-container"></div>
+      </div>
+
+      <div class="ud-tab-content" id="ud-content-orders" style="display:none">
+        <div id="ud-orders-container"></div>
+      </div>
+
+      <div class="ud-tab-content" id="ud-content-support" style="display:none">
+        <div id="ud-support-container"></div>
+      </div>
+
+      <div class="ud-tab-content" id="ud-content-achievements" style="display:none">
+        <div id="ud-achievements-container"></div>
       </div>
 
       <div class="ud-tab-content" id="ud-content-timeline" style="display:none">
         <div id="ud-timeline-container"></div>
+      </div>
+
+      <div class="ud-tab-content" id="ud-content-sessions" style="display:none">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h4 style="margin: 0; font-size: 1.1rem; color: #00E5FF">Активные сессии и устройства</h4>
+          <button class="btn btn-danger btn-sm" onclick="revokeAllSessionsAction()">⚠️ Завершить все сессии</button>
+        </div>
+        <div id="ud-sessions-container"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -620,6 +784,30 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeCreateSuperuserModal()">Отмена</button>
       <button class="btn btn-primary" style="background:#8B5CF6; border-color:#8B5CF6" onclick="saveSuperuser()">💾 Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- TG BROADCAST MODAL -->
+<div class="modal-overlay" id="tg-broadcast-modal" style="display:none">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>📢 Глобальная рассылка в Telegram</h3>
+      <button class="modal-close" onclick="closeTgBroadcastModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="tg-broadcast-alert"></div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Текст сообщения</label>
+        <textarea id="tg-broadcast-text" rows="8" placeholder="Введите сообщение для отправки всем подписчикам Telegram бота..." style="background:#111; color:#fff; border:1px solid var(--border); border-radius:4px; padding:10px; width:100%"></textarea>
+      </div>
+      <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:16px">
+        ℹ️ Внимание: сообщение увидят все пользователи, запустившие вашего Telegram бота.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTgBroadcastModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="sendTgBroadcast()" style="background:#8B5CF6; border-color:#8B5CF6">🚀 Запустить рассылку</button>
     </div>
   </div>
 </div>

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_windowmanager_plus/flutter_windowmanager_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'glass_widgets.dart';
 import 'app_state.dart';
 import 'api_service.dart';
@@ -17,13 +18,23 @@ class CourseDetailScreen extends StatefulWidget {
   State<CourseDetailScreen> createState() => _CourseDetailScreenState();
 }
 
-class _CourseDetailScreenState extends State<CourseDetailScreen> {
+class _CourseDetailScreenState extends State<CourseDetailScreen>
+    with TickerProviderStateMixin {
   late Map<String, dynamic> _currentCourse;
+  late AnimationController _staggerCtrl;
 
   @override
   void initState() {
     super.initState();
     _currentCourse = widget.course;
+    _staggerCtrl = AnimationController(vsync: this, duration: kVerySlow);
+    _staggerCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _staggerCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshCourse() async {
@@ -43,28 +54,45 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     }
   }
 
+  double _getCourseProgress() {
+    final steps = _currentCourse['steps'] as List<dynamic>? ?? [];
+    if (steps.isEmpty) return 0.0;
+    final completed =
+        steps.where((s) => s['userProgress']?['status'] == 'completed').length;
+    return completed / steps.length;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = AppState();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final steps = _currentCourse['steps'] as List<dynamic>? ?? [];
+    final progress = _getCourseProgress();
+    final completedCount =
+        steps.where((s) => s['userProgress']?['status'] == 'completed').length;
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: GlassAppBar(
-        title: Text(_currentCourse['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w400, letterSpacing: -0.5)),
+        title: Text(
+          _currentCourse['title'] ?? '',
+          style: const TextStyle(letterSpacing: -0.5),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: Row(
               children: [
-                const Icon(Icons.favorite, color: Colors.redAccent, size: 20),
+                const Icon(Icons.favorite_rounded,
+                    color: AppColors.hearts, size: 18),
                 const SizedBox(width: 4),
                 Text(
                   '${ApiService.currentUser?['courseLives'] ?? 3}',
-                  style: const TextStyle(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                  style: GoogleFonts.inter(
+                    color: AppColors.hearts,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
                   ),
                 ),
               ],
@@ -74,199 +102,391 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       ),
       body: LiquidBackground(
         child: steps.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32.0),
+            ? _buildEmptyState(isDark)
+            : CustomScrollView(
+                physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics()),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: _buildCourseHeader(
+                        progress, completedCount, steps.length,
+                        isDark: isDark),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          if (index == 0) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Text(
+                                state.translate('courses_steps'),
+                                style: GoogleFonts.inter(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            );
+                          }
+                          final step = steps[index - 1];
+                          final delay = (index - 1) * 60;
+                          final itemAnim = CurvedAnimation(
+                            parent: _staggerCtrl,
+                            curve: Interval(
+                              (delay / 600.0).clamp(0.0, 1.0),
+                              ((delay + 350.0) / 600.0).clamp(0.0, 1.0),
+                              curve: kSpring,
+                            ),
+                          );
+                          return AnimatedBuilder(
+                            animation: _staggerCtrl,
+                            builder: (_, child) => FadeTransition(
+                              opacity: Tween(begin: 0.0, end: 1.0)
+                                  .animate(itemAnim),
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0, 0.05),
+                                  end: Offset.zero,
+                                ).animate(itemAnim),
+                                child: child,
+                              ),
+                            ),
+                            child: _buildStepTile(
+                                step, index - 1, steps, isDark),
+                          );
+                        },
+                        childCount: steps.length + 1,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildCourseHeader(
+      double progress, int completedCount, int totalSteps,
+      {required bool isDark}) {
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: LiquidGlassCard(
+        padding: const EdgeInsets.all(20),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF181C2E), const Color(0xFF0F1320)]
+              : [Colors.white, const Color(0xFFEFF6FF)],
+        ),
+        border: Border.all(
+          color: AppColors.accent.withValues(alpha: 0.2),
+          width: 1.0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleProgressRing(
+                  value: progress,
+                  size: 60,
+                  color: AppColors.accent,
+                  child: Text(
+                    '${(progress * 100).toInt()}%',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.menu_book_outlined, size: 64, color: isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.4)),
-                      const SizedBox(height: 24),
                       Text(
-                        'В этом курсе пока нет уроков',
-                        style: TextStyle(fontSize: 18, color: isDark ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.6)),
-                        textAlign: TextAlign.center,
+                        '$completedCount из $totalSteps уроков',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _currentCourse['description'] ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppColors.subtextDark,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              )
-            : ListView.builder(
-                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                padding: const EdgeInsets.all(16),
-                itemCount: steps.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _currentCourse['description'] ?? '',
-                            style: TextStyle(
-                              fontSize: 15,
-                              height: 1.5,
-                              color: isDark ? Colors.white.withValues(alpha: 0.75) : const Color(0xFF1C1C1E).withValues(alpha: 0.75),
-                            ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            AnimatedProgressBar(value: progress),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.accent.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(Icons.menu_book_rounded,
+                size: 36, color: AppColors.accent),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'В этом курсе пока нет уроков',
+            style: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: isDark ? AppColors.textDark : AppColors.textLight,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepTile(
+      dynamic step, int stepIndex, List<dynamic> allSteps, bool isDark) {
+    final stepStatus = step['userProgress']?['status'] ?? 'not_started';
+    final isCompleted = stepStatus == 'completed';
+    final isInProgress = stepStatus == 'in_progress';
+    final isLocked = step['isLocked'] == true;
+    final isFinalExam = step['isFinalExam'] == true;
+    final type = step['type'] ?? 'text';
+    final isLastStep = stepIndex >= allSteps.length - 1;
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Road-map line
+        Column(
+          children: [
+            StepTypeIcon(
+              type: type,
+              isCompleted: isCompleted,
+              isLocked: isLocked,
+              isFinalExam: isFinalExam,
+            ),
+            if (!isLastStep)
+              Container(
+                width: 2,
+                height: 16,
+                margin: const EdgeInsets.symmetric(vertical: 2),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: isCompleted
+                        ? [AppColors.success, AppColors.success.withValues(alpha: 0.3)]
+                        : [
+                            AppColors.darkBorder,
+                            AppColors.darkBorder.withValues(alpha: 0.3),
+                          ],
+                  ),
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: PressScaleWidget(
+              scale: isLocked ? 1.0 : 0.98,
+              onTap: isLocked
+                  ? () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Завершите предыдущий урок, чтобы разблокировать этот шаг',
+                            style: GoogleFonts.inter(fontSize: 13),
                           ),
-                          const SizedBox(height: 16),
-                          Divider(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08)),
-                          const SizedBox(height: 8),
-                          Text(
-                            state.translate('courses_steps'),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isDark ? Colors.white : const Color(0xFF1C1C1E),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  final step = steps[index - 1];
-                  final stepStatus = step['userProgress']?['status'] ?? 'not_started';
-                  final isCompleted = stepStatus == 'completed';
-                  final isInProgress = stepStatus == 'in_progress';
-                  final isFinalExam = step['isFinalExam'] == true;
-  
-                  return GestureDetector(
-                    onTap: () {
-                      if (step['isLocked'] == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Завершите предыдущий урок, чтобы разблокировать этот шаг'),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
-                        return;
-                      }
+                          backgroundColor: AppColors.danger,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      );
+                    }
+                  : () {
                       HapticFeedback.lightImpact();
                       Navigator.push(
                         context,
                         GlassRoute(
                           page: StepDetailScreen(
-                            steps: steps,
-                            initialIndex: index - 1,
+                            steps: allSteps,
+                            initialIndex: stepIndex,
                             onStepCompleted: _refreshCourse,
                           ),
                         ),
-                      ).then((_) {
-                        _refreshCourse();
-                      });
+                      ).then((_) => _refreshCourse());
                     },
-                    child: GlassContainer(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      borderRadius: 14,
-                      border: Border.all(
-                        color: isCompleted
-                            ? Colors.green.withValues(alpha: 0.5)
-                            : isFinalExam
-                                ? const Color(0xFF007AFF).withValues(alpha: 0.4)
-                                : (isDark ? Colors.white.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.12)),
-                        width: 1.0,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: isCompleted
-                                  ? Colors.green.withValues(alpha: 0.15)
-                                  : isFinalExam
-                                      ? const Color(0xFF007AFF).withValues(alpha: 0.1)
-                                      : const Color(0xFF007AFF).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
+              child: Opacity(
+                opacity: isLocked ? 0.45 : 1.0,
+                child: LiquidGlassCard(
+                  padding: const EdgeInsets.all(14),
+                  border: Border.all(
+                    color: isCompleted
+                        ? AppColors.success.withValues(alpha: 0.3)
+                        : isFinalExam
+                            ? AppColors.warning.withValues(alpha: 0.3)
+                            : isInProgress
+                                ? AppColors.accent.withValues(alpha: 0.3)
+                                : (isDark
+                                    ? AppColors.darkBorder
+                                    : AppColors.lightBorder),
+                    width: isCompleted || isFinalExam || isInProgress ? 1.5 : 1.0,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              step['title'] ?? '',
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: isLocked
+                                    ? AppColors.subtextDark
+                                    : textColor,
+                                letterSpacing: -0.2,
+                              ),
                             ),
-                            child: Icon(
-                              isCompleted
-                                  ? Icons.check_circle
-                                  : isFinalExam
-                                      ? Icons.emoji_events
-                                      : step['type'] == 'quiz'
-                                          ? Icons.quiz
-                                          : step['type'] == 'video'
-                                              ? Icons.play_circle_outline
-                                              : Icons.article_outlined,
-                              color: isCompleted
-                                  ? Colors.green
-                                  : isFinalExam
-                                      ? const Color(0xFF007AFF)
-                                      : const Color(0xFF007AFF),
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            const SizedBox(height: 4),
+                            Row(
                               children: [
-                                Text(
-                                  step['title'] ?? '',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15,
-                                    color: isDark ? Colors.white : const Color(0xFF1C1C1E),
+                                // Type badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isFinalExam
+                                        ? AppColors.warning.withValues(alpha: 0.12)
+                                        : type == 'quiz'
+                                            ? const Color(0xFF7C3AED)
+                                                .withValues(alpha: 0.12)
+                                            : type == 'video'
+                                                ? AppColors.danger
+                                                    .withValues(alpha: 0.1)
+                                                : AppColors.accent
+                                                    .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isFinalExam
+                                        ? 'Финальный экзамен'
+                                        : type == 'quiz'
+                                            ? 'Тест'
+                                            : type == 'video'
+                                                ? 'Видеоурок'
+                                                : 'Теория',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: isFinalExam
+                                          ? AppColors.warning
+                                          : type == 'quiz'
+                                              ? const Color(0xFF7C3AED)
+                                              : type == 'video'
+                                                  ? AppColors.danger
+                                                  : AppColors.accent,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    if (isFinalExam)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: const Text(
-                                          'Финальный экзамен',
-                                          style: TextStyle(fontSize: 10, color: Color(0xFF007AFF), fontWeight: FontWeight.bold),
-                                        ),
-                                      )
-                                    else
-                                      Text(
-                                        step['type'] == 'quiz' ? 'Тест' : step['type'] == 'video' ? 'Видеоурок' : 'Теоретический урок',
-                                        style: TextStyle(fontSize: 12, color: isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.5)),
+                                if (isInProgress && !isCompleted) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          AppColors.warning.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'В процессе',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.warning,
                                       ),
-                                    if (isInProgress && !isCompleted) ...[
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: const Text(
-                                          'В процессе',
-                                          style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
-                          ),
-                          if (step['isLocked'] == true)
-                            Icon(Icons.lock_outline, color: isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.35), size: 20)
-                          else if (isCompleted)
-                            const Icon(Icons.check_circle, color: Colors.green, size: 22)
-                          else
-                            Icon(Icons.chevron_right, color: isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.35)),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                      const SizedBox(width: 8),
+                      if (isLocked)
+                        Icon(Icons.lock_rounded,
+                            color: AppColors.subtextDark
+                                .withValues(alpha: 0.4),
+                            size: 18)
+                      else if (isCompleted)
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withValues(alpha: 0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.check_rounded,
+                              color: AppColors.success, size: 16),
+                        )
+                      else
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color:
+                              AppColors.subtextDark.withValues(alpha: 0.4),
+                          size: 20,
+                        ),
+                    ],
+                  ),
+                ),
               ),
-      ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
+
+// ═══════════════════════════════════════
+// STEP DETAIL SCREEN — DUOLINGO STYLE
+// ═══════════════════════════════════════
 
 class StepDetailScreen extends StatefulWidget {
   final List<dynamic> steps;
@@ -284,10 +504,12 @@ class StepDetailScreen extends StatefulWidget {
   State<StepDetailScreen> createState() => _StepDetailScreenState();
 }
 
-class _StepDetailScreenState extends State<StepDetailScreen> {
+class _StepDetailScreenState extends State<StepDetailScreen>
+    with TickerProviderStateMixin {
   late int _currentIndex;
 
-  Map<String, dynamic> get _currentStep => widget.steps[_currentIndex];
+  Map<String, dynamic> get _currentStep =>
+      widget.steps[_currentIndex] as Map<String, dynamic>;
 
   bool _isLoading = true;
   bool _isBlocked = false;
@@ -315,6 +537,9 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
   List<dynamic> _failedTopics = [];
   DateTime? _cooldownUntil;
 
+  // For reading progress bar
+  double _readProgress = 0.0;
+
   @override
   void initState() {
     super.initState();
@@ -322,9 +547,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     _isQuiz = _currentStep['type'] == 'quiz';
     _isFinalExam = _currentStep['isFinalExam'] ?? false;
     _activateSecureMode();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadStepData();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadStepData());
   }
 
   void _initForCurrentIndex() {
@@ -333,7 +556,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     _scrollController?.dispose();
     _scrollController = null;
 
-    final currentStep = widget.steps[_currentIndex];
+    final currentStep = widget.steps[_currentIndex] as Map<String, dynamic>;
 
     setState(() {
       _isLoading = true;
@@ -355,6 +578,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
       _attemptsUsed = 0;
       _failedTopics = [];
       _cooldownUntil = null;
+      _readProgress = 0.0;
     });
 
     _loadStepData();
@@ -369,11 +593,11 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     super.dispose();
   }
 
-  // Prevents screenshots on Android
   Future<void> _activateSecureMode() async {
     if (!kIsWeb && Platform.isAndroid) {
       try {
-        await FlutterWindowManagerPlus.addFlags(FlutterWindowManagerPlus.FLAG_SECURE);
+        await FlutterWindowManagerPlus.addFlags(
+            FlutterWindowManagerPlus.FLAG_SECURE);
       } catch (e) {
         debugPrint('Error setting FLAG_SECURE: $e');
       }
@@ -383,7 +607,8 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
   Future<void> _deactivateSecureMode() async {
     if (!kIsWeb && Platform.isAndroid) {
       try {
-        await FlutterWindowManagerPlus.clearFlags(FlutterWindowManagerPlus.FLAG_SECURE);
+        await FlutterWindowManagerPlus.clearFlags(
+            FlutterWindowManagerPlus.FLAG_SECURE);
       } catch (e) {
         debugPrint('Error clearing FLAG_SECURE: $e');
       }
@@ -400,7 +625,6 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
 
     final stepId = _currentStep['id'];
 
-    // Call startStep to initialize/get progress
     final startRes = await ApiService.startStep(stepId);
     if (startRes == null) {
       setState(() {
@@ -424,20 +648,19 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     _status = progress['status'] ?? 'not_started';
     _scrollCompleted = progress['scrollCompleted'] ?? false;
     _attemptsUsed = progress['quizAttempts'] ?? 0;
-    
+
     if (progress['cooldownUntil'] != null) {
       _cooldownUntil = DateTime.parse(progress['cooldownUntil']);
     }
 
     if (_isQuiz) {
-      // If completed previously, show results or allow review
       if (_status == 'completed') {
         _quizSubmitted = true;
         _quizPassed = true;
-        _quizScore = (progress['timeSpentSeconds'] as num?)?.toDouble() ?? 100.0;
+        _quizScore =
+            (progress['timeSpentSeconds'] as num?)?.toDouble() ?? 100.0;
       }
 
-      // Fetch quiz questions (which are shuffled and secure)
       final quizRes = await ApiService.fetchQuiz(stepId);
       if (quizRes == null) {
         setState(() {
@@ -472,27 +695,28 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
           if (_status != 'completed') {
             setState(() {
               _secondsSpent++;
+              if (_estimatedReadTime > 0) {
+                _readProgress = (_secondsSpent / _estimatedReadTime).clamp(0.0, 1.0);
+              }
             });
           }
         });
 
-        // Auto-complete scroll for very short texts (no scrollable content)
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController != null && _scrollController!.hasClients) {
             final maxExtent = _scrollController!.position.maxScrollExtent;
             if (maxExtent < 20) {
-              setState(() {
-                _scrollCompleted = true;
-              });
+              setState(() => _scrollCompleted = true);
             }
           }
         });
       } else if (_currentStep['type'] == 'video') {
         _videoDuration = startRes['videoDurationSeconds'] ?? 0;
-        
+
         if (progress['lessonStartedAt'] != null) {
           final startedAt = DateTime.parse(progress['lessonStartedAt']);
-          final elapsed = DateTime.now().difference(startedAt).inSeconds;
+          final elapsed =
+              DateTime.now().difference(startedAt).inSeconds;
           _remainingVideoSeconds = _videoDuration - elapsed;
           if (_remainingVideoSeconds < 0) _remainingVideoSeconds = 0;
         } else {
@@ -500,11 +724,10 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
         }
 
         if (_remainingVideoSeconds > 0 && _status != 'completed') {
-          _videoTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          _videoTimer =
+              Timer.periodic(const Duration(seconds: 1), (timer) {
             if (_remainingVideoSeconds > 0) {
-              setState(() {
-                _remainingVideoSeconds--;
-              });
+              setState(() => _remainingVideoSeconds--);
             } else {
               _videoTimer?.cancel();
             }
@@ -512,9 +735,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
         }
       }
 
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -522,20 +743,24 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     if (_scrollController == null || !_scrollController!.hasClients) return;
     final maxScroll = _scrollController!.position.maxScrollExtent;
     final currentScroll = _scrollController!.position.pixels;
-    // Also handle short content (maxScroll < 20)
     if (maxScroll < 20 || currentScroll >= maxScroll - 40) {
       if (!_scrollCompleted) {
-        setState(() {
-          _scrollCompleted = true;
-        });
+        setState(() => _scrollCompleted = true);
       }
+    }
+    // Update scroll-based read progress
+    if (maxScroll > 0) {
+      setState(() {
+        final scrollFraction = (currentScroll / maxScroll).clamp(0.0, 1.0);
+        if (scrollFraction > _readProgress) {
+          _readProgress = scrollFraction;
+        }
+      });
     }
   }
 
   Future<void> _completeLesson() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     final res = await ApiService.completeStepSecure(
       stepId: _currentStep['id'],
@@ -544,72 +769,61 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     );
 
     if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
 
     if (res == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ошибка соединения с сервером')),
+        _buildSnackBar('Ошибка соединения с сервером', isError: true),
       );
       return;
     }
 
     if (res.containsKey('error')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(res['error'])),
+        _buildSnackBar(res['error'], isError: true),
       );
       return;
     }
 
-    setState(() {
-      _status = 'completed';
-    });
-
-    // Notify parent to refresh steps status
+    setState(() => _status = 'completed');
     widget.onStepCompleted?.call();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(res['message'] ?? 'Урок завершен!')),
+      _buildSnackBar(res['message'] ?? 'Урок завершён! ✓', isError: false),
     );
   }
 
   Future<void> _submitQuizAnswers() async {
     if (_selectedAnswers.length < _quizQuestions.length) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пожалуйста, ответьте на все вопросы перед отправкой.')),
+        _buildSnackBar(
+            'Пожалуйста, ответьте на все вопросы перед отправкой.',
+            isError: true),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    final answersPayload = _selectedAnswers.entries.map((e) => {
-      'question': e.key,
-      'selectedOption': e.value
-    }).toList();
+    final answersPayload = _selectedAnswers.entries
+        .map((e) => {'question': e.key, 'selectedOption': e.value})
+        .toList();
 
     final res = await ApiService.submitQuiz(_currentStep['id'], answersPayload);
 
     if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
 
     if (res == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ошибка соединения с сервером')),
+        _buildSnackBar('Ошибка соединения с сервером', isError: true),
       );
       return;
     }
 
     if (res.containsKey('error')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(res['error'])),
+        _buildSnackBar(res['error'], isError: true),
       );
       return;
     }
@@ -620,20 +834,31 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
       _quizScore = (res['score'] as num?)?.toDouble() ?? 0.0;
       _attemptsUsed = res['attemptsUsed'] ?? _attemptsUsed + 1;
       _failedTopics = res['failedTopics'] ?? [];
-      
+
       if (res['cooldownUntil'] != null) {
         _cooldownUntil = DateTime.parse(res['cooldownUntil']);
       }
 
       if (_quizPassed) {
         _status = 'completed';
-        // Notify parent
         widget.onStepCompleted?.call();
         if (res['certificateIssued'] == true) {
           _showCertificateIssuedDialog(res['certificateUuid']);
         }
       }
     });
+  }
+
+  SnackBar _buildSnackBar(String message, {required bool isError}) {
+    return SnackBar(
+      content: Text(message,
+          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
+      backgroundColor: isError ? AppColors.danger : AppColors.success,
+      behavior: SnackBarBehavior.floating,
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(16),
+    );
   }
 
   void _showCertificateIssuedDialog(String? uuid) {
@@ -644,28 +869,79 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
         return Dialog(
           backgroundColor: Colors.transparent,
           insetPadding: const EdgeInsets.all(24),
-          child: GlassContainer(
-            borderRadius: 22,
-            padding: const EdgeInsets.all(24),
+          child: LiquidGlassCard(
+            borderRadius: 24,
+            padding: const EdgeInsets.all(28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.stars, color: Color(0xFF007AFF), size: 48),
-                const SizedBox(height: 12),
-                const Text('Поздравляем!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
-                const SizedBox(height: 12),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.accent, AppColors.accentLight],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.accent.withValues(alpha: 0.4),
+                        blurRadius: 20,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.military_tech_rounded,
+                      color: Colors.white, size: 40),
+                ),
+                const SizedBox(height: 20),
                 Text(
-                  'Вы успешно прошли все испытания курса и получили официальный сертификат!\n\nUUID: $uuid',
-                  style: const TextStyle(color: Colors.grey),
+                  'Поздравляем!',
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                    letterSpacing: -0.5,
+                  ),
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  'Вы успешно прошли все испытания курса и получили официальный сертификат!',
+                  style: GoogleFonts.inter(
+                    color: AppColors.subtextDark,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (uuid != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'UUID: $uuid',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
-                GlassButton(
+                TeslaButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    Navigator.of(context).pop(); // Back to course list
+                    Navigator.of(context).pop();
                   },
-                  child: const Text('Отлично'),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 32, vertical: 14),
+                  child: const Text('Отлично! 🎉'),
                 ),
               ],
             ),
@@ -678,7 +954,6 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
   Future<void> _simulateViolation() async {
     final res = await ApiService.logViolation(_currentStep['id']);
     if (res == null) return;
-
     if (!mounted) return;
 
     final violationCount = res['violationCount'] ?? 0;
@@ -688,72 +963,89 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: GlassContainer(
-            borderRadius: 22,
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('ДОСТУП ЗАБЛОКИРОВАН', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                const Text(
-                  'Система зафиксировала 5 нарушений политики безопасности (скриншоты/запись экрана).\n\nДоступ к курсу заблокирован на 24 часа.',
-                  style: TextStyle(color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                GlassButton(
-                  gradient: const LinearGradient(colors: [Colors.redAccent, Colors.red]),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Понятно', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ),
+        builder: (context) => _buildViolationDialog(
+          title: 'ДОСТУП ЗАБЛОКИРОВАН',
+          message:
+              'Система зафиксировала 5 нарушений политики безопасности.\n\nДоступ к курсу заблокирован на 24 часа.',
+          color: AppColors.danger,
+          onClose: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+          },
         ),
       );
     } else if (violationCount >= 3) {
       showDialog(
         context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.transparent,
-          child: GlassContainer(
-            borderRadius: 22,
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('ПРЕДУПРЕЖДЕНИЕ', style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold, fontSize: 18), textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                Text(
-                  'Скриншоты и запись экрана в приложении запрещены!\n\nУ вас зафиксировано $violationCount из 5 нарушений. После 5 нарушений доступ к курсу будет заблокирован на 24 часа.',
-                  style: const TextStyle(color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                GlassButton(
-                  gradient: const LinearGradient(colors: [Colors.orangeAccent, Colors.orange]),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Я понял', style: TextStyle(color: Colors.white)),
-                ),
-              ],
-            ),
-          ),
+        builder: (context) => _buildViolationDialog(
+          title: 'ПРЕДУПРЕЖДЕНИЕ',
+          message:
+              'Скриншоты и запись экрана в приложении запрещены!\n\nЗафиксировано $violationCount из 5 нарушений.',
+          color: AppColors.warning,
+          onClose: () => Navigator.of(context).pop(),
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text('⚠️ Скриншот зафиксирован! Попытка $violationCount из 5.'),
-        ),
+        _buildSnackBar(
+            '⚠️ Скриншот зафиксирован! Попытка $violationCount из 5.',
+            isError: true),
       );
     }
+  }
+
+  Widget _buildViolationDialog({
+    required String title,
+    required String message,
+    required Color color,
+    required VoidCallback onClose,
+  }) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: LiquidGlassCard(
+        borderRadius: 22,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              color == AppColors.danger
+                  ? Icons.block_rounded
+                  : Icons.warning_rounded,
+              color: color,
+              size: 48,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                letterSpacing: -0.3,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: GoogleFonts.inter(
+                color: AppColors.subtextDark,
+                height: 1.5,
+                fontSize: 13,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            TeslaButton(
+              onPressed: onClose,
+              backgroundColor: color,
+              child: const Text('Понятно'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -761,6 +1053,7 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     final step = _currentStep;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final type = step['type'] ?? 'text';
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
 
     if (_isBlocked) {
       return Scaffold(
@@ -772,21 +1065,36 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.lock, size: 64, color: Colors.redAccent),
-                  const SizedBox(height: 24),
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.danger.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.lock_rounded,
+                        size: 36, color: AppColors.danger),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
                     'Доступ заблокирован',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     _blockMessage,
-                    style: TextStyle(fontSize: 14, color: isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.5)),
+                    style: GoogleFonts.inter(
+                        fontSize: 14, color: AppColors.subtextDark),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
-                  GlassButton(
+                  TeslaButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    isOutlined: true,
                     child: const Text('Назад'),
                   ),
                 ],
@@ -798,25 +1106,47 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     }
 
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF007AFF))),
+      return Scaffold(
+        backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.accent,
+            strokeWidth: 2.5,
+          ),
+        ),
       );
     }
 
     return Scaffold(
-      appBar: GlassAppBar(
-        title: Text(step['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w400, letterSpacing: -0.5)),
-        actions: [
-          if (type == 'video')
-            IconButton(
-              icon: Icon(Icons.screenshot_monitor, color: isDark ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.6)),
-              tooltip: 'Симулировать скриншот',
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                _simulateViolation();
-              },
-            )
-        ],
+      backgroundColor: Colors.transparent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: Column(
+          children: [
+            GlassAppBar(
+              title: Text(step['title'] ?? '',
+                  style: const TextStyle(letterSpacing: -0.5)),
+              actions: [
+                if (type == 'video')
+                  IconButton(
+                    icon: Icon(Icons.screenshot_monitor,
+                        color: AppColors.subtextDark, size: 20),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      _simulateViolation();
+                    },
+                  ),
+              ],
+            ),
+            // Reading progress bar (for text type)
+            if (type == 'text')
+              AnimatedProgressBar(
+                value: _scrollCompleted ? 1.0 : _readProgress,
+                height: 3,
+                color: _scrollCompleted ? AppColors.success : AppColors.accent,
+              ),
+          ],
+        ),
       ),
       body: LiquidBackground(
         child: SafeArea(
@@ -824,111 +1154,103 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
                   controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        step['title'] ?? '',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
-                      ),
-                      const SizedBox(height: 16),
-                      if (step['imageUrl'] != null && step['imageUrl'].toString().trim().isNotEmpty) ...[
+                      if (step['imageUrl'] != null &&
+                          step['imageUrl'].toString().trim().isNotEmpty) ...[
                         ClipRRect(
                           borderRadius: BorderRadius.circular(16),
                           child: Image.network(
                             step['imageUrl'],
-                            height: 220,
+                            height: 200,
                             width: double.infinity,
                             fit: BoxFit.cover,
                             loadingBuilder: (context, child, loadingProgress) {
                               if (loadingProgress == null) return child;
-                              return Container(
-                                height: 220,
-                                decoration: BoxDecoration(
-                                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.03),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: const Color(0xFF007AFF),
-                                    value: loadingProgress.expectedTotalBytes != null
-                                        ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                        : null,
-                                  ),
-                                ),
-                              );
+                              return const SkeletonLoader(
+                                  width: double.infinity,
+                                  height: 200,
+                                  borderRadius: 16);
                             },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: 120,
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                                ),
-                                child: const Center(
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.broken_image, color: Colors.redAccent),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Ошибка загрузки изображения',
-                                        style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: AppColors.danger.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.broken_image,
+                                    color: AppColors.danger),
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                       ],
                       if (!_isQuiz) ...[
-                        Text(
-                          step['content'] ?? '',
-                          style: TextStyle(fontSize: 16, height: 1.6, color: isDark ? Colors.white.withValues(alpha: 0.85) : const Color(0xFF1C1C1E).withValues(alpha: 0.85)),
-                        ),
-                        if (type == 'video' && step['content'] != null && (step['content'] as String).startsWith('http')) ...[
-                          const SizedBox(height: 24),
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.04),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08)),
-                            ),
+                        // Video timer display
+                        if (type == 'video' && _remainingVideoSeconds > 0) ...[
+                          LiquidGlassCard(
+                            padding: const EdgeInsets.all(20),
+                            margin: const EdgeInsets.only(bottom: 20),
                             child: Column(
                               children: [
-                                const Icon(Icons.video_library, size: 48, color: Color(0xFFF43F5E)),
+                                Text(
+                                  'Посмотрите видео перед продолжением',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    color: AppColors.subtextDark,
+                                  ),
+                                ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  'Видео доступно по ссылке:',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
+                                  '${(_remainingVideoSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingVideoSeconds % 60).toString().padLeft(2, '0')}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.accent,
+                                    letterSpacing: -1,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(
-                                  step['content'],
-                                  style: const TextStyle(color: Color(0xFF007AFF), decoration: TextDecoration.underline),
-                                  textAlign: TextAlign.center,
+                                AnimatedProgressBar(
+                                  value: _videoDuration > 0
+                                      ? 1 -
+                                          (_remainingVideoSeconds /
+                                              _videoDuration)
+                                      : 0,
+                                  color: AppColors.accent,
                                 ),
                               ],
                             ),
                           ),
                         ],
+                        Text(
+                          step['content'] ?? '',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            height: 1.7,
+                            color: textColor,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
                       ] else ...[
-                        // Quiz form
-                        if (_quizSubmitted) _buildQuizResults() else _buildQuizQuestionsList(),
+                        if (_quizSubmitted)
+                          _buildQuizResults()
+                        else
+                          _buildQuizQuestionsList(isDark),
                       ],
                     ],
                   ),
                 ),
               ),
-              if (!_isQuiz) _buildBottomActionBar(),
+              if (!_isQuiz) _buildBottomActionBar(isDark),
             ],
           ),
         ),
@@ -936,135 +1258,365 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     );
   }
 
-  Widget _buildQuizQuestionsList() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildQuizQuestionsList(bool isDark) {
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+    final answeredCount = _selectedAnswers.length;
+    final totalCount = _quizQuestions.length;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          _isFinalExam ? 'Финальный экзамен модуля' : 'Промежуточный тест',
-          style: const TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold, fontSize: 14),
+        // Quiz header
+        LiquidGlassCard(
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 20),
+          border: Border.all(
+            color: (_isFinalExam ? AppColors.warning : const Color(0xFF7C3AED))
+                .withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (_isFinalExam
+                              ? AppColors.warning
+                              : const Color(0xFF7C3AED))
+                          .withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _isFinalExam ? '🏆 Финальный экзамен' : '📝 Тест',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _isFinalExam
+                            ? AppColors.warning
+                            : const Color(0xFF7C3AED),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$answeredCount / $totalCount',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accent,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              AnimatedProgressBar(
+                value: totalCount > 0 ? answeredCount / totalCount : 0,
+                color: _isFinalExam
+                    ? AppColors.warning
+                    : const Color(0xFF7C3AED),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Минимальный проходной балл: ${_isFinalExam ? "95%" : "80%"}',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.subtextDark,
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Необходимо набрать минимум ${_isFinalExam ? "95%" : "80%"} правильных ответов.',
-          style: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.5), fontSize: 13),
-        ),
-        const SizedBox(height: 24),
-        ..._quizQuestions.map((q) {
+        // Questions
+        ..._quizQuestions.asMap().entries.map((entry) {
+          final qIndex = entry.key;
+          final q = entry.value;
           final questionText = q['question'];
           final options = q['options'] as List<dynamic>;
 
-          return GlassContainer(
-            margin: const EdgeInsets.only(bottom: 16),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: LiquidGlassCard(
+              padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    questionText,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
-                  ),
-                  const SizedBox(height: 16),
-                  ...options.map((opt) {
-                    final isSelected = _selectedAnswers[questionText] == opt;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF007AFF).withValues(alpha: 0.15) : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: isSelected ? const Color(0xFF007AFF) : (isDark ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.12))),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: _selectedAnswers.containsKey(questionText)
+                              ? AppColors.accent.withValues(alpha: 0.15)
+                              : AppColors.subtextDark.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${qIndex + 1}',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _selectedAnswers.containsKey(questionText)
+                                  ? AppColors.accent
+                                  : AppColors.subtextDark,
+                            ),
+                          ),
+                        ),
                       ),
-                      child: ListTile(
-                        dense: true,
-                        title: Text(opt.toString(), style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1C1C1E))),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          questionText,
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  ...options.map((opt) {
+                    final isSelected =
+                        _selectedAnswers[questionText] == opt;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: PressScaleWidget(
+                        scale: 0.97,
                         onTap: () {
                           HapticFeedback.lightImpact();
                           setState(() {
                             _selectedAnswers[questionText] = opt.toString();
                           });
                         },
+                        child: AnimatedContainer(
+                          duration: kFast,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.accent.withValues(alpha: 0.12)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.accent
+                                  : (isDark
+                                      ? AppColors.darkBorder
+                                      : AppColors.lightBorder),
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              AnimatedContainer(
+                                duration: kFast,
+                                width: 18,
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isSelected
+                                      ? AppColors.accent
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.accent
+                                        : AppColors.subtextDark
+                                            .withValues(alpha: 0.4),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: isSelected
+                                    ? const Icon(Icons.check_rounded,
+                                        color: Colors.white, size: 12)
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  opt.toString(),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: isSelected ? AppColors.accent : textColor,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
-                  })
+                  }),
                 ],
               ),
             ),
           );
         }),
-        const SizedBox(height: 24),
-        GlassButton(
-          onPressed: _selectedAnswers.length < _quizQuestions.length ? null : _submitQuizAnswers,
-          child: const Text('Сдать тест', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+        const SizedBox(height: 8),
+        TeslaButton(
+          onPressed: answeredCount < _quizQuestions.length
+              ? null
+              : _submitQuizAnswers,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Сдать тест',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+              if (answeredCount < _quizQuestions.length) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '($answeredCount/$totalCount)',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
+        const SizedBox(height: 32),
       ],
     );
   }
 
   Widget _buildQuizResults() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final remainingCooldownMinutes = _cooldownUntil != null ? _cooldownUntil!.difference(DateTime.now()).inMinutes : 0;
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+    final remainingCooldownMinutes = _cooldownUntil != null
+        ? _cooldownUntil!.difference(DateTime.now()).inMinutes
+        : 0;
     final isLastStep = _currentIndex >= widget.steps.length - 1;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
-            child: Icon(
-              _quizPassed ? Icons.check_circle : Icons.cancel,
-              size: 72,
-              color: _quizPassed ? Colors.green : Colors.red,
+            child: Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: (_quizPassed ? AppColors.success : AppColors.danger)
+                    .withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: (_quizPassed ? AppColors.success : AppColors.danger)
+                      .withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                _quizPassed ? Icons.check_rounded : Icons.close_rounded,
+                size: 44,
+                color: _quizPassed ? AppColors.success : AppColors.danger,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
-            _quizPassed ? 'ТЕСТ СДАН!' : 'ТЕСТ ПРОВАЛЕН',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _quizPassed ? Colors.green : Colors.red),
+            _quizPassed ? 'Тест сдан! 🎉' : 'Тест не пройден',
+            style: GoogleFonts.inter(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: _quizPassed ? AppColors.success : AppColors.danger,
+              letterSpacing: -0.5,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          GlassContainer(
-            borderRadius: 16,
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  _buildResultRow('Ваш результат:', '${_quizScore.toStringAsFixed(0)}%', isDark),
-                  Divider(color: Colors.white.withValues(alpha: 0.15)),
-                  _buildResultRow('Использовано попыток:', '$_attemptsUsed из 5', isDark),
-                  if (!_quizPassed && _cooldownUntil != null && remainingCooldownMinutes > 0) ...[
-                    Divider(color: Colors.white.withValues(alpha: 0.15)),
-                    _buildResultRow('Повтор доступен через:', '$remainingCooldownMinutes мин', isDark),
-                  ]
+          LiquidGlassCard(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                _buildResultRow(
+                    'Ваш результат',
+                    '${_quizScore.toStringAsFixed(0)}%',
+                    isDark,
+                    color: _quizPassed ? AppColors.success : AppColors.danger),
+                Divider(
+                    color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                    height: 24),
+                _buildResultRow('Попыток использовано',
+                    '$_attemptsUsed из 5', isDark),
+                if (!_quizPassed &&
+                    _cooldownUntil != null &&
+                    remainingCooldownMinutes > 0) ...[
+                  Divider(
+                      color: isDark
+                          ? AppColors.darkBorder
+                          : AppColors.lightBorder,
+                      height: 24),
+                  _buildResultRow('Повтор доступен через',
+                      '$remainingCooldownMinutes мин', isDark,
+                      color: AppColors.warning),
                 ],
-              ),
+              ],
             ),
           ),
-          const SizedBox(height: 24),
           if (!_quizPassed && _failedTopics.isNotEmpty) ...[
+            const SizedBox(height: 20),
             Text(
-              'Темы, которые нужно повторить:',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
-            ),
-            const SizedBox(height: 8),
-            ..._failedTopics.map((topic) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning, color: Colors.orange, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(topic.toString(), style: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.6)))),
-                ],
+              'Темы для повторения:',
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: textColor,
               ),
-            )),
-            const SizedBox(height: 32),
+            ),
+            const SizedBox(height: 10),
+            ..._failedTopics.map((topic) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.only(top: 6, right: 10),
+                        decoration: const BoxDecoration(
+                          color: AppColors.warning,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          topic.toString(),
+                          style: GoogleFonts.inter(
+                            color: AppColors.subtextDark,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
+          const SizedBox(height: 24),
           if (!_quizPassed)
-            GlassButton(
-              opacity: 0.1,
+            TeslaButton(
+              isDestructive: false,
+              isOutlined: remainingCooldownMinutes > 0 || _attemptsUsed >= 5,
               onPressed: remainingCooldownMinutes > 0 || _attemptsUsed >= 5
                   ? null
                   : () {
@@ -1073,19 +1625,19 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
                         _selectedAnswers.clear();
                       });
                     },
+              padding: const EdgeInsets.symmetric(vertical: 15),
               child: Text(
                 _attemptsUsed >= 5
-                    ? 'Попытки исчерпаны (обратитесь к админу)'
-                    : (remainingCooldownMinutes > 0 ? 'Тест заблокирован на кулдаун' : 'Попробовать снова'),
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                    ? 'Попытки исчерпаны'
+                    : (remainingCooldownMinutes > 0
+                        ? 'Кулдаун: $remainingCooldownMinutes мин'
+                        : 'Попробовать снова'),
               ),
             ),
-          const SizedBox(height: 12),
-          if (_quizPassed)
-            GlassButton(
-              gradient: isLastStep 
-                  ? const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF007AFF)]) 
-                  : const LinearGradient(colors: [Color(0xFF34C759), Color(0xFF30B34A)]),
+          if (_quizPassed) ...[
+            TeslaButton(
+              backgroundColor:
+                  isLastStep ? AppColors.accent : AppColors.success,
               onPressed: () {
                 HapticFeedback.lightImpact();
                 if (isLastStep) {
@@ -1097,50 +1649,77 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
                   });
                 }
               },
-              child: Text(
-                isLastStep ? 'Завершить курс ✓' : 'Следующий шаг →',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    isLastStep ? 'Завершить курс' : 'Следующий урок',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded,
+                      color: Colors.white, size: 18),
+                ],
               ),
-            )
-          else
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
             TextButton(
-              onPressed: () {
-                HapticFeedback.lightImpact();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Вернуться к списку уроков', style: TextStyle(color: Color(0xFF007AFF))),
-            )
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Вернуться к списку уроков',
+                style: GoogleFonts.inter(color: AppColors.accent),
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildResultRow(String title, String value, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: TextStyle(color: isDark ? Colors.white.withValues(alpha: 0.6) : Colors.black.withValues(alpha: 0.6), fontSize: 14)),
-          Text(value, style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1C1C1E), fontWeight: FontWeight.bold, fontSize: 15)),
-        ],
-      ),
+  Widget _buildResultRow(String title, String value, bool isDark,
+      {Color? color}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.inter(
+            color: AppColors.subtextDark,
+            fontSize: 14,
+          ),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: color ?? (isDark ? AppColors.textDark : AppColors.textLight),
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildBottomActionBar() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final barBgColor = isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03);
+  Widget _buildBottomActionBar(bool isDark) {
+    final bgColor = isDark
+        ? AppColors.darkSurface.withValues(alpha: 0.9)
+        : AppColors.lightSurface.withValues(alpha: 0.9);
 
     if (_status == 'completed') {
       final isLastStep = _currentIndex >= widget.steps.length - 1;
       return Container(
-        color: barBgColor,
-        padding: const EdgeInsets.all(16.0),
-        child: GlassButton(
-          gradient: isLastStep 
-              ? const LinearGradient(colors: [Color(0xFF00E5FF), Color(0xFF007AFF)]) 
-              : const LinearGradient(colors: [Color(0xFF34C759), Color(0xFF30B34A)]),
+        color: bgColor,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        child: TeslaButton(
+          backgroundColor:
+              isLastStep ? AppColors.accent : AppColors.success,
           onPressed: () {
             HapticFeedback.lightImpact();
             if (isLastStep) {
@@ -1152,9 +1731,22 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
               });
             }
           },
-          child: Text(
-            isLastStep ? 'Завершить курс ✓' : 'Следующий шаг →', 
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isLastStep ? 'Завершить курс' : 'Следующий урок',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_rounded,
+                  color: Colors.white, size: 18),
+            ],
           ),
         ),
       );
@@ -1163,67 +1755,115 @@ class _StepDetailScreenState extends State<StepDetailScreen> {
     final isText = _currentStep['type'] == 'text';
 
     if (isText) {
-      final textReady = _scrollCompleted && _secondsSpent >= _estimatedReadTime;
-      final remainingRead = _estimatedReadTime - _secondsSpent;
+      final textReady =
+          _scrollCompleted && _secondsSpent >= _estimatedReadTime;
+      final remainingRead = (_estimatedReadTime - _secondsSpent).clamp(0, 9999);
 
       return Container(
-        color: barBgColor,
-        padding: const EdgeInsets.all(16.0),
+        color: bgColor,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (!textReady) ...[
               if (!_scrollCompleted)
-                const Text(
-                  '👇 Прокрутите текст до самого конца страницы',
-                  style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.swipe_down_rounded,
+                          color: AppColors.warning, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Прокрутите весь текст до конца',
+                          style: GoogleFonts.inter(
+                            color: AppColors.warning,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               if (remainingRead > 0)
                 Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    '⏳ Внимательно ознакомьтесь с материалом. Осталось: $remainingRead сек.',
-                    style: const TextStyle(color: Color(0xFF007AFF), fontSize: 12, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.timer_outlined,
+                          color: AppColors.accent, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Осталось: $remainingReadс',
+                        style: GoogleFonts.inter(
+                          color: AppColors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              const SizedBox(height: 12),
             ],
-            GlassButton(
-              opacity: textReady ? -1.0 : 0.05,
+            TeslaButton(
               onPressed: textReady ? _completeLesson : null,
-              child: const Text('Завершить урок', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              child: Text(
+                'Завершить урок',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         ),
       );
     } else {
-      // Video lesson
+      // Video
       final videoReady = _remainingVideoSeconds <= 0;
       final m = (_remainingVideoSeconds / 60).floor().toString().padLeft(2, '0');
       final s = (_remainingVideoSeconds % 60).toString().padLeft(2, '0');
 
       return Container(
-        color: barBgColor,
-        padding: const EdgeInsets.all(16.0),
+        color: bgColor,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (!videoReady) ...[
-              Text(
-                '⏳ Следующий шаг доступен через $m:$s',
-                style: const TextStyle(color: Color(0xFF007AFF), fontSize: 12, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+            if (!videoReady)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.play_circle_outline_rounded,
+                        color: AppColors.accent, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Следующий шаг через $m:$s',
+                      style: GoogleFonts.inter(
+                        color: AppColors.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-            ],
-            GlassButton(
-              opacity: videoReady ? -1.0 : 0.05,
+            TeslaButton(
               onPressed: videoReady ? _completeLesson : null,
-              child: const Text('Следующий шаг', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+              child: Text(
+                'Следующий шаг',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         ),

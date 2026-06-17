@@ -9,6 +9,7 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const https = require('https');
+const os = require('os');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -100,6 +101,32 @@ const authMiddleware = async (req, res, next) => {
     if (!user) return res.status(401).json({ error: 'Пользователь не найден' });
     if (user.isBlocked) {
       return res.status(403).json({ error: 'Ваш доступ временно приостановлен. Обратитесь к администратору' });
+    }
+
+    let session = await prisma.session.findUnique({ where: { token } });
+    if (!session) {
+      // Auto-create session for active JWT to prevent breaking existing users during migration
+      session = await prisma.session.create({
+        data: {
+          userId: user.id,
+          token,
+          ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+          userAgent: req.headers['user-agent'] || null,
+          lastActive: new Date()
+        }
+      }).catch(() => null);
+    } else if (session.isRevoked) {
+      return res.status(401).json({ error: 'Сессия была завершена или недействительна. Пожалуйста, войдите снова.' });
+    } else {
+      // Update lastActive and browser details asynchronously
+      prisma.session.update({
+        where: { id: session.id },
+        data: {
+          lastActive: new Date(),
+          ipAddress: req.ip || req.headers['x-forwarded-for'] || session.ipAddress,
+          userAgent: req.headers['user-agent'] || session.userAgent
+        }
+      }).catch(err => console.error('Error updating session lastActive:', err));
     }
 
     if (['superadmin', 'admin', 'supersupport', 'support', 'superuser'].includes(user.role)) {
@@ -232,18 +259,6 @@ async function grantUserExpAndCheckAchievements(userId, expAmount, triggerEvent,
   }
   newLevel = calculatedLevel;
 
-  // Recalculate level in case achievement rewards pushed user up
-  calculatedLevel = 1;
-  while (calculatedLevel < 30) {
-    const nextLevelExp = getRequiredExpForLevel(calculatedLevel + 1);
-    if (newExp >= nextLevelExp) {
-      calculatedLevel++;
-    } else {
-      break;
-    }
-  }
-  newLevel = calculatedLevel;
-
   await db.user.update({
     where: { id: userId },
     data: {
@@ -253,6 +268,35 @@ async function grantUserExpAndCheckAchievements(userId, expAmount, triggerEvent,
   });
 
   return { exp: newExp, level: newLevel, newlyUnlocked };
+}
+
+// ─────────────────────────────────────────────
+// SYSTEM SETTINGS HELPERS
+// ─────────────────────────────────────────────
+async function getSystemSetting(key, defaultValue) {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key }
+    });
+    if (setting) return setting.value;
+  } catch (e) {
+    console.error(`Error reading system setting ${key}:`, e.message);
+  }
+  return defaultValue;
+}
+
+async function setSystemSetting(key, value) {
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key },
+      update: { value: value.toString() },
+      create: { key, value: value.toString() }
+    });
+    return true;
+  } catch (e) {
+    console.error(`Error saving system setting ${key}:`, e.message);
+    return false;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -337,6 +381,17 @@ app.post('/auth/verify-code', async (req, res) => {
     pendingRegistrations.delete(email.toLowerCase());
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    // Create session record
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        userAgent: req.headers['user-agent'] || null
+      }
+    }).catch(err => console.error('Failed to save session:', err.message));
+
     res.json({
       token,
       user: {
@@ -367,6 +422,17 @@ app.post('/auth/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Неверный Email или пароль' });
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    // Create session record
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        userAgent: req.headers['user-agent'] || null
+      }
+    }).catch(err => console.error('Failed to save session:', err.message));
+
     const isSpecialRole = ['superadmin', 'admin', 'supersupport', 'support', 'superuser'].includes(user.role);
     res.json({
       token,
@@ -411,6 +477,17 @@ app.post('/auth/google', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    // Create session record
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        userAgent: req.headers['user-agent'] || null
+      }
+    }).catch(err => console.error('Failed to save session:', err.message));
+
     const isSpecialRole = ['superadmin', 'admin', 'supersupport', 'support', 'superuser'].includes(user.role);
     res.json({
       token,
@@ -474,6 +551,17 @@ app.post('/auth/google-real', async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    // Create session record
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        userAgent: req.headers['user-agent'] || null
+      }
+    }).catch(err => console.error('Failed to save session:', err.message));
+
     const isSpecialRole = ['superadmin', 'admin', 'supersupport', 'support', 'superuser'].includes(user.role);
 
     res.json({
@@ -515,7 +603,9 @@ app.get('/auth/me', authMiddleware, async (req, res) => {
         level: true,
         courseLives: true,
         livesRestoredAt: true,
-        achievements: { select: { achievementId: true, unlockedAt: true } }
+        achievements: { select: { achievementId: true, unlockedAt: true } },
+        dob: true,
+        country: true
       },
     });
     if (user && ['superadmin', 'admin', 'supersupport', 'support', 'superuser'].includes(user.role)) {
@@ -529,7 +619,7 @@ app.get('/auth/me', authMiddleware, async (req, res) => {
 
 app.put('/auth/me', authMiddleware, async (req, res) => {
   try {
-    const { name, email, phone, language, avatar } = req.body;
+    const { name, email, phone, language, avatar, dob, country } = req.body;
     if (email) {
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing && existing.id !== req.user.id) {
@@ -538,7 +628,7 @@ app.put('/auth/me', authMiddleware, async (req, res) => {
     }
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: { name, email, phone, language, avatar },
+      data: { name, email, phone, language, avatar, dob, country },
       select: {
         id: true,
         email: true,
@@ -552,13 +642,195 @@ app.put('/auth/me', authMiddleware, async (req, res) => {
         level: true,
         courseLives: true,
         livesRestoredAt: true,
-        achievements: { select: { achievementId: true, unlockedAt: true } }
+        achievements: { select: { achievementId: true, unlockedAt: true } },
+        dob: true,
+        country: true
       },
     });
     if (user && ['superadmin', 'admin', 'supersupport', 'support', 'superuser'].includes(user.role)) {
       user.courseLives = 3;
     }
     res.json(user);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/auth/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) return res.status(400).json({ error: 'Все поля обязательны' });
+    if (newPassword.length < 6) return res.status(400).json({ error: 'Новый пароль должен быть не менее 6 символов' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const valid = await bcrypt.compare(oldPassword, user.password);
+    if (!valid) return res.status(400).json({ error: 'Неверный старый пароль' });
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password: hashedPassword }
+    });
+
+    res.json({ success: true, message: 'Пароль успешно изменен' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+// ADMIN SETTINGS
+// ─────────────────────────────────────────────
+app.get('/admin/settings', adminMiddleware, async (req, res) => {
+  try {
+    const screenshotBlockThreshold = await getSystemSetting('screenshotBlockThreshold', '5');
+    const screenshotBlockDurationHours = await getSystemSetting('screenshotBlockDurationHours', '24');
+    const telegramAdminChatId = await getSystemSetting('telegramAdminChatId', process.env.TELEGRAM_ADMIN_CHAT_ID || '');
+    res.json({
+      screenshotBlockThreshold: parseInt(screenshotBlockThreshold),
+      screenshotBlockDurationHours: parseInt(screenshotBlockDurationHours),
+      telegramAdminChatId
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/settings', adminMiddleware, async (req, res) => {
+  try {
+    const { screenshotBlockThreshold, screenshotBlockDurationHours, telegramAdminChatId } = req.body;
+    if (screenshotBlockThreshold !== undefined) {
+      await setSystemSetting('screenshotBlockThreshold', screenshotBlockThreshold);
+    }
+    if (screenshotBlockDurationHours !== undefined) {
+      await setSystemSetting('screenshotBlockDurationHours', screenshotBlockDurationHours);
+    }
+    if (telegramAdminChatId !== undefined) {
+      await setSystemSetting('telegramAdminChatId', telegramAdminChatId);
+    }
+    res.json({ success: true, message: 'Настройки успешно сохранены' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+// ADMIN CERTIFICATE MANAGEMENT
+// ─────────────────────────────────────────────
+app.get('/admin/certificates', adminMiddleware, async (req, res) => {
+  try {
+    const completions = await prisma.courseCompletion.findMany({
+      where: {
+        certificateUuid: { not: null }
+      },
+      orderBy: { completedAt: 'desc' }
+    });
+
+    // We need user emails/names and course titles
+    const users = await prisma.user.findMany({
+      select: { id: true, name: true, email: true }
+    });
+    const courses = await prisma.course.findMany({
+      select: { id: true, title: true }
+    });
+
+    const userMap = new Map(users.map(u => [u.id, u]));
+    const courseMap = new Map(courses.map(c => [c.id, c]));
+
+    const certificates = completions.map(c => {
+      const u = userMap.get(c.userId);
+      const crs = courseMap.get(c.courseId);
+      return {
+        id: c.id,
+        userId: c.userId,
+        userName: c.studentName || u?.name || 'Пилот',
+        userEmail: u?.email || '',
+        courseId: c.courseId,
+        courseTitle: crs?.title || 'Unknown Course',
+        completedAt: c.completedAt,
+        certificateIssuedAt: c.certificateIssuedAt,
+        certificateUuid: c.certificateUuid,
+        finalScore: c.finalScore,
+        lessonsCompletionPercent: c.lessonsCompletionPercent,
+        isRevoked: c.isRevoked,
+        revokedAt: c.revokedAt,
+        revokedBy: c.revokedBy,
+        revokeReason: c.revokeReason
+      };
+    });
+
+    res.json(certificates);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/certificates/:uuid/revoke', adminMiddleware, async (req, res) => {
+  try {
+    const uuid = req.params.uuid;
+    const { reason } = req.body;
+
+    const completion = await prisma.courseCompletion.findUnique({
+      where: { certificateUuid: uuid }
+    });
+    if (!completion) return res.status(404).json({ error: 'Сертификат не найден' });
+
+    const updated = await prisma.courseCompletion.update({
+      where: { certificateUuid: uuid },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+        revokedBy: req.user.name,
+        revokeReason: reason || 'Нарушение правил платформы'
+      }
+    });
+
+    // Log action
+    await prisma.adminAction.create({
+      data: {
+        adminId: req.user.id,
+        actionType: 'revoke_certificate',
+        targetUserId: completion.userId,
+        details: `Отозван сертификат ${uuid}. Причина: ${reason}`
+      }
+    });
+
+    res.json({ success: true, certificate: updated });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/certificates/:uuid/activate', adminMiddleware, async (req, res) => {
+  try {
+    const uuid = req.params.uuid;
+
+    const completion = await prisma.courseCompletion.findUnique({
+      where: { certificateUuid: uuid }
+    });
+    if (!completion) return res.status(404).json({ error: 'Сертификат не найден' });
+
+    const updated = await prisma.courseCompletion.update({
+      where: { certificateUuid: uuid },
+      data: {
+        isRevoked: false,
+        revokedAt: null,
+        revokedBy: null,
+        revokeReason: null
+      }
+    });
+
+    // Log action
+    await prisma.adminAction.create({
+      data: {
+        adminId: req.user.id,
+        actionType: 'activate_certificate',
+        targetUserId: completion.userId,
+        details: `Активирован отозванный сертификат ${uuid}`
+      }
+    });
+
+    res.json({ success: true, certificate: updated });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -618,11 +890,9 @@ app.post('/orders/:id/delivery', authMiddleware, async (req, res) => {
     const order = await prisma.order.findUnique({ where: { id: orderId } });
     if (!order) return res.status(404).json({ error: 'Заказ не найден' });
     if (order.userId !== req.user.id) return res.status(403).json({ error: 'Нет доступа к этому заказу' });
-    // Store delivery info in status field as JSON (minimal schema change)
-    const deliveryInfo = JSON.stringify({ deliveryAddress, deliveryCity, deliveryContact });
     const updated = await prisma.order.update({
       where: { id: orderId },
-      data: { status: order.status === 'PENDING' ? `PENDING|${deliveryInfo}` : order.status },
+      data: { deliveryAddress, deliveryCity, deliveryContact },
     });
     res.json({ success: true, order: updated });
   } catch (e) {
@@ -1428,7 +1698,7 @@ app.post('/courses/steps/:stepId/quiz-submit', authMiddleware, async (req, res) 
 
     let updatedLives = req.user.courseLives;
     const isRegularUser = !['superadmin', 'admin', 'supersupport', 'support', 'superuser'].includes(req.user.role);
-    if (correctCount < originalQuestions.length && isRegularUser) {
+    if (!passed && isRegularUser) {
       updatedLives = Math.max(0, req.user.courseLives - 1);
       await prisma.user.update({
         where: { id: req.user.id },
@@ -1555,12 +1825,18 @@ app.post('/courses/steps/:stepId/violation', authMiddleware, async (req, res) =>
       }
     });
 
+    const thresholdSetting = await getSystemSetting('screenshotBlockThreshold', '5');
+    const threshold = parseInt(thresholdSetting) || 5;
+
+    const durationSetting = await getSystemSetting('screenshotBlockDurationHours', '24');
+    const durationHours = parseInt(durationSetting) || 24;
+
     let blocked = false;
     let blockedUntil = null;
 
-    if (courseViolationsCount >= 5) {
+    if (courseViolationsCount >= threshold) {
       blocked = true;
-      blockedUntil = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours block
+      blockedUntil = new Date(Date.now() + durationHours * 60 * 60 * 1000);
       await prisma.userCourseBlock.upsert({
         where: {
           userId_courseId: {
@@ -1579,6 +1855,26 @@ app.post('/courses/steps/:stepId/violation', authMiddleware, async (req, res) =>
           blockedUntil
         }
       });
+
+      // Send telegram notification to admins
+      try {
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const telegramAdminChatId = await getSystemSetting('telegramAdminChatId', process.env.TELEGRAM_ADMIN_CHAT_ID || '');
+        if (botToken && telegramAdminChatId) {
+          const course = await prisma.course.findUnique({ where: { id: step.courseId } });
+          const user = req.user;
+          const msg = `⚠️ [Нарушение] Пользователь ${user.name} (${user.email}, ID: ${user.id}) автоматически заблокирован в курсе "${course?.title || 'Unknown'}" на ${durationHours} ч. из-за превышения порога скриншотов (${courseViolationsCount}/${threshold}).`;
+          
+          const chatIds = telegramAdminChatId.split(',').map(id => id.trim()).filter(Boolean);
+          for (const chatId of chatIds) {
+            await sendTelegramMessage(botToken, chatId, msg).catch(err => {
+              console.error(`Error sending message to chatId ${chatId}:`, err.message);
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error sending screenshot block telegram notification:', err.message);
+      }
     }
 
     res.json({
@@ -1892,12 +2188,98 @@ app.get('/admin/users-dashboard', adminMiddleware, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// USER SESSION MANAGEMENT
+// ─────────────────────────────────────────────
+app.get('/admin/users/:id/sessions', adminMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const sessions = await prisma.session.findMany({
+      where: { userId, isRevoked: false },
+      orderBy: { lastActive: 'desc' }
+    });
+    res.json(sessions);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/users/:id/sessions/revoke-all', adminMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    await prisma.session.updateMany({
+      where: { userId, isRevoked: false },
+      data: { isRevoked: true }
+    });
+
+    // Log action
+    await prisma.adminAction.create({
+      data: {
+        adminId: req.user.id,
+        actionType: 'revoke_all_sessions',
+        targetUserId: userId,
+        details: 'Сброшены все активные сессии пользователя'
+      }
+    });
+
+    res.json({ success: true, message: 'Все сессии пользователя успешно завершены' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/sessions/:sessionId/revoke', adminMiddleware, async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.sessionId);
+    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    if (!session) return res.status(404).json({ error: 'Сессия не найдена' });
+
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { isRevoked: true }
+    });
+
+    // Log action
+    await prisma.adminAction.create({
+      data: {
+        adminId: req.user.id,
+        actionType: 'revoke_session',
+        targetUserId: session.userId,
+        details: `Сброшена сессия ID: ${sessionId} (IP: ${session.ipAddress || '—'})`
+      }
+    });
+
+    res.json({ success: true, message: 'Сессия успешно завершена' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/admin/users/:id/detail', adminMiddleware, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, role: true, isBlocked: true, blockedAt: true, blockedBy: true, blockReason: true, courseLives: true, livesRestoredAt: true }
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isBlocked: true,
+        blockedAt: true,
+        blockedBy: true,
+        blockReason: true,
+        courseLives: true,
+        livesRestoredAt: true,
+        phone: true,
+        dob: true,
+        country: true,
+        level: true,
+        exp: true,
+        createdAt: true,
+        avatar: true,
+        language: true
+      }
     });
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
@@ -2011,10 +2393,40 @@ app.get('/admin/users/:id/detail', adminMiddleware, async (req, res) => {
       user.courseLives = 3;
     }
 
+    // Fetch user's orders, support requests, and achievements
+    const orders = await prisma.order.findMany({
+      where: { userId },
+      include: {
+        items: {
+          include: { product: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const supportRequests = await prisma.supportRequest.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const achievements = await prisma.userAchievement.findMany({
+      where: { userId },
+      orderBy: { unlockedAt: 'desc' }
+    });
+
+    const sessions = await prisma.session.findMany({
+      where: { userId, isRevoked: false },
+      orderBy: { lastActive: 'desc' }
+    });
+
     res.json({
       user,
       courses: courseDetails,
-      timeline: timeline.slice(0, 30), // limit to last 30 events
+      timeline: timeline.slice(0, 50),
+      orders,
+      supportRequests,
+      achievements,
+      sessions,
       notifications: {
         exhaustedAttempts,
         screenshotBlocked,
@@ -2914,6 +3326,10 @@ app.put('/admin/about/:id', adminMiddleware, async (req, res) => {
   }
 });
 
+app.get('/verify/:uuid', async (req, res) => {
+  res.redirect(`/verify-certificate/${req.params.uuid}`);
+});
+
 app.get('/verify-certificate/:uuid', async (req, res) => {
   try {
     const uuid = req.params.uuid;
@@ -2971,6 +3387,204 @@ app.get('/verify-certificate/:uuid', async (req, res) => {
             <h1>Сертификат не найден</h1>
             <p>Указанный уникальный идентификатор сертификата не зарегистрирован в системе UZDF Uzbekistan. Пожалуйста, проверьте правильность ссылки.</p>
             <a href="/" class="btn">На главную</a>
+          </div>
+        </body>
+        </html>
+      `);
+    }
+
+    if (completion.isRevoked) {
+      const user = await prisma.user.findUnique({ where: { id: completion.userId } });
+      const course = await prisma.course.findUnique({ where: { id: completion.courseId } });
+      const formattedDate = new Date(completion.certificateIssuedAt).toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      const formattedRevokeDate = completion.revokedAt ? new Date(completion.revokedAt).toLocaleDateString('ru-RU', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }) : '';
+
+      return res.send(`
+        <!DOCTYPE html>
+        <html lang="ru">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Сертификат Отозван - UZDF</title>
+          <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+          <style>
+            body {
+              background-color: #030712;
+              color: #f3f4f6;
+              font-family: 'Outfit', sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background-image: 
+                radial-gradient(at 0% 0%, hsla(350,100%,50%,0.08) 0, transparent 50%),
+                radial-gradient(at 100% 100%, hsla(0,100%,50%,0.08) 0, transparent 50%);
+            }
+            .container {
+              max-width: 600px;
+              width: 90%;
+              background: rgba(17, 24, 39, 0.7);
+              border: 1px solid rgba(239, 68, 68, 0.3);
+              border-radius: 24px;
+              padding: 48px;
+              text-align: center;
+              box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+              backdrop-filter: blur(16px);
+            }
+            .badge {
+              background: linear-gradient(135deg, #EF4444 0%, #991B1B 100%);
+              width: 80px;
+              height: 80px;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 24px auto;
+              box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+            }
+            .badge svg {
+              width: 40px;
+              height: 40px;
+              fill: none;
+              stroke: #ffffff;
+              stroke-width: 2.5;
+              stroke-linecap: round;
+              stroke-linejoin: round;
+            }
+            h1 {
+              font-size: 28px;
+              font-weight: 700;
+              margin: 0 0 8px 0;
+              color: #EF4444;
+            }
+            .subtitle {
+              color: #9ca3af;
+              text-transform: uppercase;
+              font-size: 12px;
+              letter-spacing: 3px;
+              font-weight: 700;
+              margin-bottom: 32px;
+            }
+            .info-grid {
+              display: grid;
+              grid-template-columns: 1fr;
+              gap: 20px;
+              text-align: left;
+              margin-bottom: 32px;
+            }
+            @media(min-width: 480px) {
+              .info-grid {
+                grid-template-columns: 1fr 1fr;
+              }
+            }
+            .info-item {
+              background: rgba(31, 41, 55, 0.4);
+              padding: 16px 20px;
+              border-radius: 12px;
+              border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .info-label {
+              color: #9ca3af;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-bottom: 6px;
+            }
+            .info-value {
+              color: #ffffff;
+              font-size: 16px;
+              font-weight: 600;
+            }
+            .revoke-box {
+              background: rgba(239, 68, 68, 0.08);
+              border: 1px solid rgba(239, 68, 68, 0.2);
+              border-radius: 12px;
+              padding: 20px;
+              text-align: left;
+              margin-bottom: 32px;
+            }
+            .uuid-box {
+              font-family: monospace;
+              background: #0b0f19;
+              border: 1px dashed rgba(239, 68, 68, 0.2);
+              color: #9ca3af;
+              padding: 12px;
+              border-radius: 8px;
+              font-size: 13px;
+              margin-top: 24px;
+              word-break: break-all;
+            }
+            .btn-home {
+              display: inline-block;
+              margin-top: 32px;
+              background: rgba(255, 255, 255, 0.05);
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              color: #ffffff;
+              text-decoration: none;
+              padding: 12px 32px;
+              border-radius: 12px;
+              font-weight: 600;
+              transition: all 0.3s ease;
+            }
+            .btn-home:hover {
+              background: #EF4444;
+              color: #ffffff;
+              border-color: #EF4444;
+              box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="badge">
+              <svg viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
+            <h1>Сертификат Аннулирован</h1>
+            <div class="subtitle">Данный сертификат был отозван администрацией</div>
+            
+            <div class="revoke-box">
+              <div style="font-weight: bold; color: #EF4444; margin-bottom: 6px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Информация об отзыве:</div>
+              <div style="color: #f3f4f6; font-size: 15px; margin-bottom: 8px; line-height: 1.5;"><strong>Причина:</strong> ${completion.revokeReason || 'Нарушение правил использования платформы'}</div>
+              <div style="color: #9ca3af; font-size: 13px;"><strong>Дата отзыва:</strong> ${formattedRevokeDate}</div>
+              <div style="color: #9ca3af; font-size: 13px; margin-top: 4px;"><strong>Модератор:</strong> ${completion.revokedBy || 'Администрация'}</div>
+            </div>
+
+            <div class="info-grid">
+              <div class="info-item" style="grid-column: span 2">
+                <div class="info-label">Бывший владелец</div>
+                <div class="info-value" style="font-size: 18px; color: #9ca3af; text-decoration: line-through;">${completion.studentName || user?.name}</div>
+              </div>
+              <div class="info-item" style="grid-column: span 2">
+                <div class="info-label">Курс</div>
+                <div class="info-value">${course?.title}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Дата Выдачи</div>
+                <div class="info-value">${formattedDate}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Итоговый Балл</div>
+                <div class="info-value">${completion.finalScore ? completion.finalScore.toFixed(1) : '95'}%</div>
+              </div>
+            </div>
+
+            <div class="uuid-box">
+              UUID: ${completion.certificateUuid}
+            </div>
+
+            <a href="/" class="btn-home">Вернуться на сайт</a>
           </div>
         </body>
         </html>
@@ -3215,6 +3829,8 @@ function sendTelegramMessage(token, chatId, text) {
   });
 }
 
+let botProcess = null;
+
 function startTelegramBot() {
   if (process.env.DISABLE_BOT_SPAWN === 'true') {
     console.log('🤖 [Bot Manager] Автозапуск Telegram Bot отключен (DISABLE_BOT_SPAWN=true).');
@@ -3224,6 +3840,17 @@ function startTelegramBot() {
   if (!fs.existsSync(botPath)) {
     console.log(`⚠️ [Bot Manager] Telegram Bot не найден по пути: ${botPath}. Пропускаем автозапуск.`);
     return;
+  }
+
+  // If already running, kill the old process
+  if (botProcess) {
+    try {
+      console.log('🤖 [Bot Manager] Завершение предыдущего процесса Telegram Bot...');
+      botProcess.kill();
+    } catch (e) {
+      console.error('Ошибка при завершении старого бота:', e.message);
+    }
+    botProcess = null;
   }
 
   // Detect virtual environment executable if it exists
@@ -3238,7 +3865,7 @@ function startTelegramBot() {
   }
 
   console.log(`🤖 [Bot Manager] Запуск Telegram Bot: ${pythonCmd} ${botPath}`);
-  const botProcess = spawn(pythonCmd, [botPath], {
+  botProcess = spawn(pythonCmd, [botPath], {
     stdio: 'inherit',
     env: process.env
   });
@@ -3248,9 +3875,82 @@ function startTelegramBot() {
   });
 
   process.on('exit', () => {
-    botProcess.kill();
+    if (botProcess) botProcess.kill();
   });
 }
+
+// ─────────────────────────────────────────────
+// SYSTEM HEALTH & BOT RESTART
+// ─────────────────────────────────────────────
+app.get('/admin/system-status', adminMiddleware, async (req, res) => {
+  try {
+    // 1. OS CPU load estimation
+    const cpus = os.cpus();
+    let cpuUser = 0;
+    let cpuSys = 0;
+    let cpuIdle = 0;
+    cpus.forEach(cpu => {
+      cpuUser += cpu.times.user;
+      cpuSys += cpu.times.sys;
+      cpuIdle += cpu.times.idle;
+    });
+    const totalCpuTime = cpuUser + cpuSys + cpuIdle;
+    const cpuLoadPercent = totalCpuTime > 0 ? Math.round(((cpuUser + cpuSys) / totalCpuTime) * 100) : 0;
+
+    // 2. OS RAM usage
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    const usedMem = totalMem - freeMem;
+    const ramUsagePercent = Math.round((usedMem / totalMem) * 100);
+
+    // 3. Uptime
+    const sysUptimeSeconds = os.uptime();
+    const nodeUptimeSeconds = process.uptime();
+
+    // 4. Node.js Memory usage
+    const memoryUsage = process.memoryUsage(); // heapUsed, heapTotal, rss, external
+
+    // 5. Database Latency Check
+    const dbStart = Date.now();
+    await prisma.$queryRaw`SELECT 1`;
+    const dbLatencyMs = Date.now() - dbStart;
+
+    // 6. Telegram Bot Process status
+    const isBotRunning = botProcess !== null && botProcess.exitCode === null;
+
+    res.json({
+      cpuLoadPercent,
+      ramUsagePercent,
+      totalMemBytes: totalMem,
+      usedMemBytes: usedMem,
+      freeMemBytes: freeMem,
+      sysUptimeSeconds,
+      nodeUptimeSeconds,
+      nodeMemory: {
+        rssBytes: memoryUsage.rss,
+        heapTotalBytes: memoryUsage.heapTotal,
+        heapUsedBytes: memoryUsage.heapUsed,
+        externalBytes: memoryUsage.external
+      },
+      dbLatencyMs,
+      isBotRunning,
+      platform: os.platform(),
+      release: os.release()
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/admin/bot/restart', adminMiddleware, async (req, res) => {
+  try {
+    console.log('🤖 [Bot Manager] Запрос на перезапуск бота от администратора:', req.user.email);
+    startTelegramBot();
+    res.json({ success: true, message: 'Процесс Telegram бота перезапущен' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // 1. Get Bot Stats
 app.get('/admin/bot/stats', adminMiddleware, async (req, res) => {
@@ -3449,6 +4149,89 @@ app.post('/admin/bot/chats/:id/reply', adminMiddleware, async (req, res) => {
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// 5b. Telegram Bot Broadcast to All Users
+app.post('/admin/bot/broadcast', adminMiddleware, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Текст рассылки не может быть пустым' });
+
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+      return res.status(500).json({ error: 'Токен Telegram бота не настроен на сервере' });
+    }
+
+    const tgUsers = await prisma.telegramUser.findMany();
+    if (!tgUsers.length) {
+      return res.json({ success: true, count: 0, message: 'Нет пользователей для рассылки' });
+    }
+
+    let successCount = 0;
+    for (const tgUser of tgUsers) {
+      try {
+        await sendTelegramMessage(botToken, tgUser.id, text);
+        await prisma.telegramMessage.create({
+          data: {
+            telegramUserId: tgUser.id,
+            text: text,
+            isFromUser: false,
+            adminId: req.user.id
+          }
+        });
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to send broadcast message to ${tgUser.id}:`, err.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      count: successCount,
+      total: tgUsers.length
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Export Users as CSV
+app.get('/admin/users/export', adminMiddleware, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=users_report.csv');
+    let csv = '\uFEFFID,Name,Email,Phone,DOB,Country,Role,Level,EXP,Lives,Blocked,RegisteredAt\n';
+    users.forEach(u => {
+      csv += `"${u.id}","${(u.name || '').replace(/"/g, '""')}","${(u.email || '').replace(/"/g, '""')}","${(u.phone || '').replace(/"/g, '""')}","${(u.dob || '').replace(/"/g, '""')}","${(u.country || '').replace(/"/g, '""')}","${u.role}","${u.level}","${u.exp}","${u.courseLives}","${u.isBlocked ? 'Yes' : 'No'}","${new Date(u.createdAt).toLocaleString()}"\n`;
+    });
+    res.send(csv);
+  } catch (e) {
+    res.status(500).send(e.message);
+  }
+});
+
+// Export Orders as CSV
+app.get('/admin/orders/export', adminMiddleware, async (req, res) => {
+  try {
+    const orders = await prisma.order.findMany({
+      include: {
+        user: { select: { name: true, email: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=orders_report.csv');
+    let csv = '\uFEFFID,Customer,Email,TotalAmount,Status,DeliveryCity,DeliveryAddress,DeliveryContact,CreatedAt\n';
+    orders.forEach(o => {
+      csv += `"${o.id}","${(o.user?.name || '').replace(/"/g, '""')}","${(o.user?.email || '').replace(/"/g, '""')}","${o.totalAmount}","${o.status}","${(o.deliveryCity || '').replace(/"/g, '""')}","${(o.deliveryAddress || '').replace(/"/g, '""')}","${(o.deliveryContact || '').replace(/"/g, '""')}","${new Date(o.createdAt).toLocaleString()}"\n`;
+    });
+    res.send(csv);
+  } catch (e) {
+    res.status(500).send(e.message);
   }
 });
 

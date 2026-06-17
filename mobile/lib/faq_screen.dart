@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'glass_widgets.dart';
 import 'app_state.dart';
 
 class FaqScreen extends StatefulWidget {
-  const FaqScreen({super.key});
+  final String? initialSearchQuery;
+  const FaqScreen({super.key, this.initialSearchQuery});
 
   @override
   State<FaqScreen> createState() => _FaqScreenState();
@@ -13,6 +15,15 @@ class FaqScreen extends StatefulWidget {
 class _FaqScreenState extends State<FaqScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialSearchQuery != null) {
+      _searchQuery = widget.initialSearchQuery!;
+      _searchCtrl.text = widget.initialSearchQuery!;
+    }
+  }
 
   final Map<String, List<Map<String, String>>> _faqData = {
     'ru': [
@@ -187,7 +198,7 @@ class _FaqScreenState extends State<FaqScreen> {
     }
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF050814) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
       appBar: GlassAppBar(
         title: Text(
           state.translate('profile_faq'),
@@ -274,11 +285,11 @@ class _FaqScreenState extends State<FaqScreen> {
                               padding: const EdgeInsets.only(top: 16, bottom: 8, left: 4),
                               child: Text(
                                 catName,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF007AFF),
-                                  letterSpacing: 0.5,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.accent,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                             ),

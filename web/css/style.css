@@ -628,19 +628,13 @@ body::before {
 /* 3D Drone Sketchfab Embed */
 .hero-drone-3d-wrapper {
   width: 100%;
-  max-width: 420px;
+  max-width: 520px;
   aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  overflow: hidden;
   border: none !important;
   outline: none !important;
   filter: drop-shadow(0 20px 50px rgba(0, 102, 255, 0.35));
   animation: floatDrone3DModel 8s ease-in-out infinite alternate;
   position: relative;
-  /* Force clipping of model-viewer inside circular wrapper during animations/transitions */
-  transform: translate3d(0, 0, 0);
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
-  isolation: isolate;
 }
 
 /* 3D Model Viewer Drone */
@@ -652,6 +646,7 @@ model-viewer {
   --progress-bar-height: 0px !important;
   outline: none;
   border: none;
+  transform: scale(1.25); /* Scale the drone up inside its wrapper */
 }
 
 model-viewer::part(default-ar-button) {
@@ -672,13 +667,13 @@ model-viewer::part(default-ar-button) {
 
 @media (max-width: 1024px) {
   .hero-drone-3d-wrapper {
-    max-width: 320px;
+    max-width: 400px;
   }
 }
 
 @media (max-width: 768px) {
   .hero-drone-3d-wrapper {
-    max-width: 260px;
+    max-width: 300px;
   }
 }
 

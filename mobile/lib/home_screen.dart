@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'glass_widgets.dart';
 import 'app_state.dart';
 import 'api_service.dart';
@@ -46,37 +46,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _coursesFuture = ApiService.fetchCourses();
       _listController.reset();
       _coursesFuture.then((_) {
-        if (mounted) {
-          _listController.forward();
-        }
+        if (mounted) _listController.forward();
       });
     });
   }
 
-  /// Find the current active course (in_progress or last started)
   Map<String, dynamic>? _findActiveCourse(List<dynamic> courses) {
-    // First: find a course with in_progress steps
     for (final c in courses) {
       if (c['isLocked'] == true) continue;
       final steps = c['steps'] as List<dynamic>? ?? [];
-      final hasInProgress = steps.any((s) => s['userProgress']?['status'] == 'in_progress');
-      final hasCompleted = steps.any((s) => s['userProgress']?['status'] == 'completed');
+      final hasInProgress =
+          steps.any((s) => s['userProgress']?['status'] == 'in_progress');
+      final hasCompleted =
+          steps.any((s) => s['userProgress']?['status'] == 'completed');
       if (hasInProgress || hasCompleted) return c as Map<String, dynamic>;
     }
-    // Fallback: first unlocked course
     for (final c in courses) {
       if (c['isLocked'] != true) return c as Map<String, dynamic>;
     }
     return null;
   }
 
-  /// True if user has any progress in a course
   bool _hasProgress(Map<String, dynamic> course) {
     final steps = course['steps'] as List<dynamic>? ?? [];
     return steps.any((s) {
       final status = s['userProgress']?['status'];
       return status == 'in_progress' || status == 'completed';
     });
+  }
+
+  double _getCourseProgress(Map<String, dynamic> course) {
+    final steps = course['steps'] as List<dynamic>? ?? [];
+    if (steps.isEmpty) return 0.0;
+    final completed =
+        steps.where((s) => s['userProgress']?['status'] == 'completed').length;
+    return completed / steps.length;
   }
 
   @override
@@ -88,173 +92,134 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return Scaffold(
+          backgroundColor: Colors.transparent,
           body: RefreshIndicator(
-            color: const Color(0xFF007AFF),
-            backgroundColor: Colors.white.withValues(alpha: 0.1),
+            color: AppColors.accent,
+            backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
             strokeWidth: 2.0,
-            displacement: 60,
+            displacement: 80,
             onRefresh: () async => _refreshCourses(),
             child: FutureBuilder<List<dynamic>>(
               future: _coursesFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CustomScrollView(
-                    physics: BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                    slivers: [
-                      SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator(color: Color(0xFF007AFF)),
-                        ),
-                      ),
-                    ],
-                  );
+                  return _buildSkeletonList();
                 }
 
-                if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                  return CustomScrollView(
-                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                    slivers: [
-                      _buildSliverAppBar(state),
-                      SliverList(
-                        delegate: SliverChildListDelegate([
-                          const SizedBox(height: 16),
-                          _buildPromoBanner(state, null, isDark),
-                          const SizedBox(height: 32),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              state.translate('courses_all'),
-                              style: TextStyle(
-                                fontFamily: 'SF Pro Display',
-                                fontFamilyFallback: const ['Sora'],
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: isDark ? Colors.white : const Color(0xFF1C1C1E),
-                                letterSpacing: -0.8,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          Center(
-                            child: Text(
-                              'No courses available',
-                              style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
-                            ),
-                          ),
-                        ]),
-                      ),
-                    ],
-                  );
+                if (snapshot.hasError ||
+                    !snapshot.hasData ||
+                    snapshot.data!.isEmpty) {
+                  return _buildEmptyState(state, isDark);
                 }
 
                 final courses = snapshot.data!;
                 final activeCourse = _findActiveCourse(courses);
-                final bannerCourse = activeCourse ?? (courses.isNotEmpty ? courses.first as Map<String, dynamic> : null);
+                final bannerCourse = activeCourse ??
+                    (courses.isNotEmpty
+                        ? courses.first as Map<String, dynamic>
+                        : null);
 
                 return CustomScrollView(
-                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics()),
                   slivers: [
-                    _buildSliverAppBar(state),
+                    _buildSliverAppBar(state, isDark),
                     SliverPadding(
                       padding: EdgeInsets.only(
-                        top: 16,
-                        bottom: MediaQuery.of(context).padding.bottom + 68 + 24 + 20,
+                        top: 0,
+                        bottom: MediaQuery.of(context).padding.bottom +
+                            66 +
+                            16 +
+                            24,
                       ),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
-                            final delay = index * 80;
-                            final itemAnimation = CurvedAnimation(
+                            final delay = index * 70;
+                            final itemAnim = CurvedAnimation(
                               parent: _listController,
                               curve: Interval(
-                                (delay / 800.0).clamp(0.0, 1.0),
-                                ((delay + 400.0) / 800.0).clamp(0.0, 1.0),
+                                (delay / 700.0).clamp(0.0, 1.0),
+                                ((delay + 400.0) / 700.0).clamp(0.0, 1.0),
                                 curve: kSpring,
                               ),
                             );
 
                             Widget child;
                             if (index == 0) {
-                              child = _buildPromoBanner(state, bannerCourse, isDark, activeCourse: activeCourse, courses: courses);
+                              child = _buildHeroBanner(
+                                state,
+                                bannerCourse,
+                                isDark,
+                                activeCourse: activeCourse,
+                              );
                             } else if (index == 1) {
                               child = Padding(
-                                padding: const EdgeInsets.only(top: 24, bottom: 16, left: 16, right: 16),
+                                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
                                 child: Text(
                                   state.translate('courses_all'),
-                                  style: TextStyle(
-                                    fontFamily: 'SF Pro Display',
-                                    fontFamilyFallback: const ['Sora'],
+                                  style: GoogleFonts.inter(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? Colors.white : const Color(0xFF1C1C1E),
+                                    color: isDark
+                                        ? AppColors.textDark
+                                        : AppColors.textLight,
                                     letterSpacing: -0.8,
                                   ),
                                 ),
                               );
                             } else {
-                              final course = courses[index - 2] as Map<String, dynamic>;
+                              final course =
+                                  courses[index - 2] as Map<String, dynamic>;
                               final isLocked = course['isLocked'] == true;
-                              final steps = course['steps'] as List<dynamic>? ?? [];
+                              final steps =
+                                  course['steps'] as List<dynamic>? ?? [];
                               final stepsCount = steps.length;
-                              final completedCount = steps.where((s) => s['userProgress']?['status'] == 'completed').length;
-                              final progress = stepsCount > 0 ? completedCount / stepsCount : 0.0;
-                              
+                              final completedCount = steps
+                                  .where((s) =>
+                                      s['userProgress']?['status'] == 'completed')
+                                  .length;
+                              final progress = stepsCount > 0
+                                  ? completedCount / stepsCount
+                                  : 0.0;
+
                               String statusLabel;
                               if (isLocked) {
                                 statusLabel = '🔒';
-                              } else if (completedCount == stepsCount && stepsCount > 0) {
-                                statusLabel = '✅';
+                              } else if (completedCount == stepsCount &&
+                                  stepsCount > 0) {
+                                statusLabel = '✓ Завершён';
                               } else if (completedCount > 0) {
-                                statusLabel = '$completedCount/$stepsCount';
+                                statusLabel =
+                                    'Продолжить • $completedCount/$stepsCount';
                               } else {
-                                statusLabel = stepsCount > 0 ? '$stepsCount' : '-';
+                                statusLabel = stepsCount > 0
+                                    ? '$stepsCount уроков'
+                                    : 'Начать';
                               }
 
-                              child = Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    if (isLocked) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('This course is locked. Complete previous courses first!'),
-                                          backgroundColor: Colors.redAccent,
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                    Navigator.push(
-                                      context,
-                                      GlassRoute(
-                                        page: CourseDetailScreen(course: course),
-                                      ),
-                                    ).then((_) => _refreshCourses());
-                                  },
-                                  child: _buildCourseCard(
-                                    course['title'] ?? '',
-                                    course['miniDescription'] != null && course['miniDescription'].toString().trim().isNotEmpty
-                                        ? course['miniDescription'].toString()
-                                        : (course['description'] ?? ''),
-                                    course['authorName'] ?? '',
-                                    statusLabel,
-                                    progress.toDouble(),
-                                    isDark,
-                                    isLocked: isLocked,
-                                  ),
-                                ),
+                              child = _buildCourseCard(
+                                context,
+                                course,
+                                statusLabel,
+                                progress.toDouble(),
+                                isDark,
+                                isLocked: isLocked,
+                                stepsCount: stepsCount,
+                                completedCount: completedCount,
                               );
                             }
 
                             return AnimatedBuilder(
                               animation: _listController,
                               builder: (_, childWidget) => FadeTransition(
-                                opacity: Tween(begin: 0.0, end: 1.0).animate(itemAnimation),
+                                opacity: Tween(begin: 0.0, end: 1.0)
+                                    .animate(itemAnim),
                                 child: SlideTransition(
                                   position: Tween<Offset>(
-                                    begin: const Offset(0, 0.08),
+                                    begin: const Offset(0, 0.06),
                                     end: Offset.zero,
-                                  ).animate(itemAnimation),
+                                  ).animate(itemAnim),
                                   child: childWidget,
                                 ),
                               ),
@@ -275,34 +240,105 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  SliverAppBar _buildSliverAppBar(AppState state) {
-    final isDark = AppState().isDarkMode.value;
-    final bgColor = isDark ? const Color(0xFF161B30) : Colors.white;
-    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+  Widget _buildSkeletonList() {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Skeleton hero
+                  const SkeletonLoader(
+                      width: double.infinity, height: 200, borderRadius: 20),
+                  const SizedBox(height: 28),
+                  const SkeletonLoader(width: 140, height: 22, borderRadius: 8),
+                  const SizedBox(height: 16),
+                  ...List.generate(4, (_) => const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: SkeletonCourseCard(),
+                  )),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(AppState state, bool isDark) {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics()),
+      slivers: [
+        _buildSliverAppBar(state, isDark),
+        SliverFillRemaining(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.school_outlined,
+                      size: 36, color: AppColors.accent),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Курсы недоступны',
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? AppColors.textDark : AppColors.textLight,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Потяните вниз чтобы обновить',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: AppColors.subtextDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  SliverAppBar _buildSliverAppBar(AppState state, bool isDark) {
+    final bgColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
 
     return SliverAppBar(
       floating: true,
       snap: true,
+      pinned: false,
       backgroundColor: bgColor,
       elevation: 0,
-      centerTitle: true,
       expandedHeight: 60,
-      shape: Border(
-        bottom: BorderSide(color: borderColor, width: 1.0),
-      ),
+      shape: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
       flexibleSpace: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(width: 48), // Spacer to balance refresh button
+              const SizedBox(width: 48),
               Text(
                 state.translate('courses_title'),
-                style: TextStyle(
-                  fontFamily: 'SF Pro Display',
-                  fontFamilyFallback: const ['Sora'],
+                style: GoogleFonts.inter(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: textColor,
@@ -312,7 +348,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               IconButton(
                 icon: RotationTransition(
                   turns: _refreshController,
-                  child: Icon(Icons.refresh_rounded, color: textColor),
+                  child: Icon(Icons.refresh_rounded,
+                      color: textColor, size: 22),
                 ),
                 onPressed: () {
                   HapticFeedback.lightImpact();
@@ -326,306 +363,338 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildPromoBanner(
+  Widget _buildHeroBanner(
     AppState state,
     Map<String, dynamic>? bannerCourse,
     bool isDark, {
     Map<String, dynamic>? activeCourse,
-    List<dynamic>? courses,
   }) {
-    final hasProgress = activeCourse != null && _hasProgress(activeCourse);
-    final buttonLabel = hasProgress ? state.translate('courses_start') : state.translate('courses_start');
-    final title = bannerCourse?['title'] ?? 'Базовый курс пилотирования';
+    final hasProgress =
+        activeCourse != null && _hasProgress(activeCourse);
+    final progress = bannerCourse != null
+        ? _getCourseProgress(bannerCourse)
+        : 0.0;
+    final title =
+        bannerCourse?['title'] ?? 'Базовый курс пилотирования';
     final desc = bannerCourse?['description'] ?? '';
 
-    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
-    final descColor = isDark ? Colors.white.withValues(alpha: 0.75) : const Color(0xFF1C1C1E).withValues(alpha: 0.75);
-    final progressBgColor = isDark ? Colors.white.withValues(alpha: 0.2) : Colors.black.withValues(alpha: 0.08);
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+    final descColor = isDark
+        ? AppColors.subtextDark
+        : AppColors.subtextLight;
 
-    return FloatingHero(
-      child: Container(
-        height: 260,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Glow Blob 1
-            Positioned(
-              top: -30,
-              left: -30,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF007AFF).withValues(alpha: isDark ? 0.35 : 0.08),
-                ),
-              ),
-            ),
-            // Glow Blob 2
-            Positioned(
-              bottom: 10,
-              right: 10,
-              child: Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF5856D6).withValues(alpha: isDark ? 0.2 : 0.04),
-                ),
-              ),
-            ),
-            // Hero card wrapper
-            LiquidGlassCard(
-              height: 250,
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: PressScaleWidget(
+        scale: 0.98,
+        onTap: bannerCourse == null
+            ? null
+            : () {
+                HapticFeedback.mediumImpact();
+                Navigator.push(
+                  context,
+                  GlassRoute(
+                    page: CourseDetailScreen(course: bannerCourse),
+                  ),
+                ).then((_) => _refreshCourses());
+              },
+        child: LiquidGlassCard(
+          borderRadius: 22,
+          padding: const EdgeInsets.all(22),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [
+                    const Color(0xFF181C2E),
+                    const Color(0xFF0F1320),
+                  ]
+                : [
+                    Colors.white,
+                    const Color(0xFFF0F6FF),
+                  ],
+          ),
+          border: Border.all(
+            color: AppColors.accent.withValues(alpha: 0.2),
+            width: 1.0,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  if (hasProgress)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: progressBgColor,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        '▶ Продолжается',
-                        style: TextStyle(
-                          color: textColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  // Progress ring
+                  CircleProgressRing(
+                    value: progress,
+                    size: 54,
+                    color: AppColors.accent,
+                    child: Text(
+                      '${(progress * 100).toInt()}%',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.accent,
                       ),
                     ),
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'SF Pro Display',
-                      fontFamilyFallback: const ['Sora'],
-                      color: textColor,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1.2,
-                    ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    desc,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'SF Pro Display',
-                      fontFamilyFallback: const ['Sora'],
-                      color: descColor,
-                      height: 1.6,
-                      fontWeight: FontWeight.w400,
-                      fontSize: 14,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const Spacer(),
-                  // Premium start button
-                  LiquidButton(
-                    normalOpacity: 0.25,
-                    pressedOpacity: 0.35,
-                    onTap: bannerCourse == null
-                        ? null
-                        : () {
-                            HapticFeedback.mediumImpact();
-                            Navigator.push(
-                              context,
-                              GlassRoute(
-                                page: CourseDetailScreen(course: bannerCourse),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (hasProgress)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            margin: const EdgeInsets.only(bottom: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '▶ Продолжается',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.accent,
+                                letterSpacing: 0.3,
                               ),
-                            ).then((_) => _refreshCourses());
-                          },
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: Center(
-                        child: Text(
-                          buttonLabel,
-                          style: const TextStyle(
-                            fontFamily: 'SF Pro Display',
-                            fontFamilyFallback: ['Sora'],
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF007AFF),
-                            fontSize: 16,
+                            ),
+                          ),
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: textColor,
+                            letterSpacing: -0.5,
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCourseCard(String title, String desc, String authorName, String status, double progress, bool isDark, {bool isLocked = false}) {
-    final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
-    final descColor = isDark ? Colors.white.withValues(alpha: 0.65) : const Color(0xFF1C1C1E).withValues(alpha: 0.65);
-
-    Widget cardContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontFamily: 'SF Pro Display',
-                      fontFamilyFallback: const ['Inter'],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                      color: textColor,
-                      letterSpacing: -0.3,
-                    ),
+              if (desc.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  desc,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: descColor,
+                    height: 1.5,
                   ),
-                  if (authorName.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF007AFF).withValues(alpha: 0.12),
-                        border: Border.all(color: const Color(0xFF007AFF).withValues(alpha: 0.3), width: 1.0),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        authorName,
-                        style: const TextStyle(
-                          color: Color(0xFF007AFF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                ),
+              ],
+              const SizedBox(height: 18),
+              // Progress bar
+              AnimatedProgressBar(value: progress),
+              const SizedBox(height: 16),
+              // CTA button
+              Container(
+                width: double.infinity,
+                height: 46,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.accent, AppColors.accentLight],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.accent.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        hasProgress
+                            ? 'Продолжить обучение'
+                            : state.translate('courses_start'),
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-            if (isLocked) ...[
-              const SizedBox(width: 8),
-              Icon(
-                Icons.lock_rounded,
-                color: isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.3),
-                size: 20,
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          desc,
-          style: TextStyle(
-            fontFamily: 'SF Pro Text',
-            color: descColor,
-            height: 1.6,
-            fontWeight: FontWeight.w400,
-            fontSize: 14,
-          ),
-        ),
-        if (!isLocked) ...[
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "${(progress * 100).toInt()}%",
-                style: TextStyle(
-                  fontFamily: 'SF Pro Text',
-                  color: isDark ? Colors.white.withValues(alpha: 0.7) : const Color(0xFF1C1C1E).withValues(alpha: 0.7),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+                      const SizedBox(width: 6),
+                      const Icon(Icons.arrow_forward_rounded,
+                          color: Colors.white, size: 16),
+                    ],
+                  ),
                 ),
               ),
-              _buildStepsBadge(status, isDark),
             ],
           ),
-          const SizedBox(height: 8),
-          AviationProgressBar(value: progress),
-        ] else ...[
-          const SizedBox(height: 20),
-          Text(
-            status,
-            style: TextStyle(
-              fontFamily: 'SF Pro Text',
-              color: isDark ? Colors.white.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.4),
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ],
-    );
-
-    Widget card = LiquidGlassCard(
-      padding: const EdgeInsets.all(24), // 20% increase
-      child: Row(
-        children: [
-          Expanded(
-            child: cardContent,
-          ),
-          if (!isLocked) ...[
-            const SizedBox(width: 12),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              color: isDark ? Colors.white.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.2),
-              size: 16,
-            ),
-          ],
-        ],
+        ),
       ),
     );
-
-    if (isLocked) {
-      return Opacity(
-        opacity: 0.4,
-        child: card,
-      );
-    }
-    return card;
   }
 
-  Widget _buildStepsBadge(String status, bool isDark) {
-    final badgeColor = isDark ? const Color(0xFF2979FF) : const Color(0xFF007AFF);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(100), // Pill shape
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.check_circle_outline_rounded,
-            color: badgeColor,
-            size: 12,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            status,
-            style: TextStyle(
-              fontFamily: 'SF Pro Text',
-              color: badgeColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-              letterSpacing: 0.5,
+  Widget _buildCourseCard(
+    BuildContext context,
+    Map<String, dynamic> course,
+    String statusLabel,
+    double progress,
+    bool isDark, {
+    bool isLocked = false,
+    int stepsCount = 0,
+    int completedCount = 0,
+  }) {
+    final title = course['title'] ?? '';
+    final desc = course['miniDescription']?.toString().trim().isNotEmpty == true
+        ? course['miniDescription'].toString()
+        : (course['description'] ?? '');
+    final authorName = course['authorName'] ?? '';
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
+    final descColor = isDark ? AppColors.subtextDark : AppColors.subtextLight;
+    final isCompleted = completedCount == stepsCount && stepsCount > 0;
+
+    return Opacity(
+      opacity: isLocked ? 0.45 : 1.0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        child: PressScaleWidget(
+          scale: 0.97,
+          onTap: isLocked
+              ? null
+              : () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    GlassRoute(
+                      page: CourseDetailScreen(course: course),
+                    ),
+                  ).then((_) => _refreshCourses());
+                },
+          child: LiquidGlassCard(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                // Icon
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? AppColors.success.withValues(alpha: 0.12)
+                        : isLocked
+                            ? AppColors.subtextDark.withValues(alpha: 0.1)
+                            : AppColors.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    isCompleted
+                        ? Icons.check_circle_rounded
+                        : isLocked
+                            ? Icons.lock_rounded
+                            : Icons.school_rounded,
+                    color: isCompleted
+                        ? AppColors.success
+                        : isLocked
+                            ? AppColors.subtextDark
+                            : AppColors.accent,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: textColor,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ),
+                          if (authorName.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.accent.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                authorName,
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        desc,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: descColor,
+                          height: 1.4,
+                        ),
+                      ),
+                      if (!isLocked) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: AnimatedProgressBar(value: progress),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              statusLabel,
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: isCompleted
+                                    ? AppColors.success
+                                    : AppColors.accent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (!isLocked)
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.subtextDark.withValues(alpha: 0.4),
+                    size: 18,
+                  ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +21,6 @@ void main() async {
   runApp(const UzdfApp());
 }
 
-
 class UzdfApp extends StatelessWidget {
   const UzdfApp({super.key});
 
@@ -29,69 +29,10 @@ class UzdfApp extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: AppState().isDarkMode,
       builder: (context, isDark, child) {
-        final baseTheme = ThemeData(brightness: isDark ? Brightness.dark : Brightness.light);
-        final soraTheme = GoogleFonts.soraTextTheme(baseTheme.textTheme);
-        
-        final textColor = isDark ? Colors.white : const Color(0xFF1E293B);
-        final subtitleColor = isDark ? Colors.white70 : const Color(0xFF475569);
-        
-        final customTextTheme = soraTheme.copyWith(
-          displayLarge: soraTheme.displayLarge?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w700, letterSpacing: -1.2, color: textColor),
-          displayMedium: soraTheme.displayMedium?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w700, letterSpacing: -1.2, color: textColor),
-          displaySmall: soraTheme.displaySmall?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w700, letterSpacing: -1.2, color: textColor),
-          headlineLarge: soraTheme.headlineLarge?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w700, letterSpacing: -1.2, color: textColor),
-          headlineMedium: soraTheme.headlineMedium?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w700, letterSpacing: -1.2, color: textColor),
-          headlineSmall: soraTheme.headlineSmall?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w700, letterSpacing: -1.2, color: textColor),
-          titleLarge: soraTheme.titleLarge?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w700, letterSpacing: -1.2, color: textColor),
-          titleMedium: soraTheme.titleMedium?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w600, letterSpacing: -0.8, color: textColor),
-          titleSmall: soraTheme.titleSmall?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w600, letterSpacing: -0.8, color: textColor),
-          bodyLarge: soraTheme.bodyLarge?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w400, letterSpacing: -0.3, height: 1.6, color: textColor),
-          bodyMedium: soraTheme.bodyMedium?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w400, letterSpacing: -0.3, height: 1.6, color: subtitleColor),
-          bodySmall: soraTheme.bodySmall?.copyWith(fontFamily: 'SF Pro Display', fontWeight: FontWeight.w400, letterSpacing: -0.3, height: 1.6, color: subtitleColor),
-          labelLarge: soraTheme.labelLarge?.copyWith(fontFamily: 'SF Pro Display', color: textColor),
-          labelMedium: soraTheme.labelMedium?.copyWith(fontFamily: 'SF Pro Display', color: subtitleColor),
-          labelSmall: soraTheme.labelSmall?.copyWith(fontFamily: 'SF Pro Display', color: subtitleColor),
-        );
-
         return MaterialApp(
           title: 'UZDF',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            brightness: isDark ? Brightness.dark : Brightness.light,
-            scaffoldBackgroundColor: isDark ? const Color(0xFF0A0D1A) : const Color(0xFFF8FAFC),
-            primaryColor: const Color(0xFF0066FF),
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF0066FF),
-              brightness: isDark ? Brightness.dark : Brightness.light,
-              primary: const Color(0xFF0066FF),
-              secondary: const Color(0xFF0066FF),
-              surface: isDark ? const Color(0xFF0A0D1A) : const Color(0xFFF8FAFC),
-            ),
-            cardTheme: const CardThemeData(
-              elevation: 0,
-              shadowColor: Colors.black12,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(22))),
-              clipBehavior: Clip.antiAlias,
-            ),
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              centerTitle: true,
-              iconTheme: IconThemeData(color: isDark ? Colors.white : const Color(0xFF1C1C1E)),
-              titleTextStyle: TextStyle(
-                fontFamily: 'SF Pro Display',
-                fontFamilyFallback: [GoogleFonts.sora().fontFamily ?? 'Sora'],
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : const Color(0xFF1C1C1E),
-                letterSpacing: -0.5,
-              ),
-            ),
-            fontFamily: 'SF Pro Display',
-            fontFamilyFallback: [GoogleFonts.sora().fontFamily ?? 'Sora'],
-            textTheme: customTextTheme,
-            useMaterial3: true,
-          ),
+          theme: _buildTheme(isDark),
           home: const SplashScreen(),
           onGenerateRoute: (settings) {
             Widget? screen;
@@ -105,34 +46,145 @@ class UzdfApp extends StatelessWidget {
               pageBuilder: (context, animation, secondaryAnimation) => screen!,
               transitionsBuilder: (_, animation, secondary, child) {
                 final slide = Tween<Offset>(
-                  begin: const Offset(0, 0.06),
+                  begin: const Offset(0, 0.05),
                   end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation, curve: kSpring
-                ));
+                ).animate(CurvedAnimation(parent: animation, curve: kSpring));
                 final secondarySlide = Tween<Offset>(
                   begin: Offset.zero,
-                  end: const Offset(-0.08, 0),
-                ).animate(CurvedAnimation(
-                  parent: secondary, curve: kSmooth
-                ));
+                  end: const Offset(-0.06, 0),
+                ).animate(CurvedAnimation(parent: secondary, curve: kSmooth));
                 return SlideTransition(
                   position: secondarySlide,
                   child: FadeTransition(
                     opacity: animation,
-                    child: SlideTransition(
-                      position: slide, child: child
-                    )
-                  )
+                    child: SlideTransition(position: slide, child: child),
+                  ),
                 );
-              }
+              },
             );
           },
         );
       },
     );
   }
+
+  ThemeData _buildTheme(bool isDark) {
+    final base = ThemeData(
+      brightness: isDark ? Brightness.dark : Brightness.light,
+      useMaterial3: true,
+    );
+
+    return base.copyWith(
+      scaffoldBackgroundColor:
+          isDark ? AppColors.darkBg : AppColors.lightBg,
+      primaryColor: AppColors.accent,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.accent,
+        brightness: isDark ? Brightness.dark : Brightness.light,
+        primary: AppColors.accent,
+        secondary: AppColors.accentLight,
+        surface: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        onSurface: isDark ? AppColors.textDark : AppColors.textLight,
+        onSurfaceVariant:
+            isDark ? AppColors.subtextDark : AppColors.subtextLight,
+      ),
+      cardTheme: const CardThemeData(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+        ),
+        clipBehavior: Clip.antiAlias,
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(
+          color: isDark ? AppColors.textDark : AppColors.textLight,
+        ),
+        titleTextStyle: GoogleFonts.inter(
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          color: isDark ? AppColors.textDark : AppColors.textLight,
+          letterSpacing: -0.5,
+        ),
+      ),
+      textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
+        displayLarge: GoogleFonts.inter(
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1.5,
+          color: isDark ? AppColors.textDark : AppColors.textLight,
+        ),
+        headlineLarge: GoogleFonts.inter(
+          fontWeight: FontWeight.w700,
+          letterSpacing: -1.2,
+          color: isDark ? AppColors.textDark : AppColors.textLight,
+        ),
+        headlineMedium: GoogleFonts.inter(
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.8,
+          color: isDark ? AppColors.textDark : AppColors.textLight,
+        ),
+        titleLarge: GoogleFonts.inter(
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.5,
+          color: isDark ? AppColors.textDark : AppColors.textLight,
+        ),
+        bodyLarge: GoogleFonts.inter(
+          fontWeight: FontWeight.w400,
+          height: 1.6,
+          color: isDark ? AppColors.textDark : AppColors.textLight,
+        ),
+        bodyMedium: GoogleFonts.inter(
+          fontWeight: FontWeight.w400,
+          height: 1.6,
+          color: isDark ? AppColors.subtextDark : AppColors.subtextLight,
+        ),
+      ),
+    );
+  }
 }
+
+// ═══════════════════════════════════════
+// PARTICLE SYSTEM FOR SPLASH
+// ═══════════════════════════════════════
+
+class _Particle {
+  double x, y, vx, vy, size, opacity;
+  _Particle({
+    required this.x,
+    required this.y,
+    required this.vx,
+    required this.vy,
+    required this.size,
+    required this.opacity,
+  });
+}
+
+class _ParticlePainter extends CustomPainter {
+  final List<_Particle> particles;
+  final Color color;
+
+  _ParticlePainter({required this.particles, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in particles) {
+      final paint = Paint()
+        ..color = color.withValues(alpha: p.opacity)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(
+          Offset(p.x * size.width, p.y * size.height), p.size, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ParticlePainter old) => true;
+}
+
+// ═══════════════════════════════════════
+// SPLASH SCREEN — TESLA + PARTICLES
+// ═══════════════════════════════════════
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -141,274 +193,376 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
-  late AnimationController _mainController;
-  late AnimationController _pulseController;
-  late AnimationController _hoverController;
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _mainCtrl;
+  late AnimationController _pulseCtrl;
+  late AnimationController _particleCtrl;
 
   late Animation<double> _logoScale;
-  late Animation<double> _logoRotate;
+  late Animation<double> _logoOpacity;
   late Animation<double> _textFade;
   late Animation<double> _textLetterSpacing;
+  late Animation<double> _subtitleSlide;
   late Animation<double> _subtitleFade;
-
   late Animation<double> _radarScale;
   late Animation<double> _radarOpacity;
 
-  late Animation<double> _hoverOffset;
+  final math.Random _rng = math.Random(42);
+  late List<_Particle> _particles;
 
   @override
   void initState() {
     super.initState();
 
-    // Main intro animation controller
-    _mainController = AnimationController(
+    // Init particles
+    _particles = List.generate(8, (i) => _Particle(
+      x: _rng.nextDouble(),
+      y: _rng.nextDouble(),
+      vx: (_rng.nextDouble() - 0.5) * 0.0003,
+      vy: (_rng.nextDouble() - 0.5) * 0.0003,
+      size: 1.5 + _rng.nextDouble() * 2,
+      opacity: 0.2 + _rng.nextDouble() * 0.3,
+    ));
+
+    // Main intro controller
+    _mainCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 2200),
     );
 
-    _logoScale = Tween<double>(begin: 0.1, end: 1.0).animate(
+    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.0, 0.6, curve: Curves.elasticOut),
+        parent: _mainCtrl,
+        curve: const Interval(0.0, 0.55, curve: Curves.elasticOut),
       ),
     );
 
-    _logoRotate = Tween<double>(begin: -0.4, end: 0.0).animate(
+    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+        parent: _mainCtrl,
+        curve: const Interval(0.0, 0.3, curve: Curves.easeIn),
       ),
     );
 
     _textFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.4, 0.8, curve: Curves.easeIn),
+        parent: _mainCtrl,
+        curve: const Interval(0.4, 0.75, curve: Curves.easeIn),
       ),
     );
 
-    _textLetterSpacing = Tween<double>(begin: 16.0, end: 4.0).animate(
+    _textLetterSpacing = Tween<double>(begin: 18.0, end: 3.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.4, 0.9, curve: Curves.easeOutCubic),
+        parent: _mainCtrl,
+        curve: const Interval(0.4, 0.85, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _subtitleSlide = Tween<double>(begin: 20.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _mainCtrl,
+        curve: const Interval(0.6, 1.0, curve: Curves.easeOutCubic),
       ),
     );
 
     _subtitleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(0.6, 1.0, curve: Curves.easeIn),
+        parent: _mainCtrl,
+        curve: const Interval(0.65, 1.0, curve: Curves.easeIn),
       ),
     );
 
-    // Pulse/radar controller (infinite loop)
-    _pulseController = AnimationController(
+    // Pulse radar controller
+    _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2000),
     );
 
-    _radarScale = Tween<double>(begin: 1.0, end: 2.2).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeOut,
-      ),
+    _radarScale = Tween<double>(begin: 1.0, end: 2.4).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
     );
 
-    _radarOpacity = Tween<double>(begin: 0.6, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeOut,
-      ),
+    _radarOpacity = Tween<double>(begin: 0.5, end: 0.0).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeOut),
     );
 
-    // Hover/float controller (infinite loop, reverse)
-    _hoverController = AnimationController(
+    // Particle animation
+    _particleCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    );
+      duration: const Duration(milliseconds: 16),
+    )..addListener(_updateParticles);
 
-    _hoverOffset = Tween<double>(begin: -6.0, end: 6.0).animate(
-      CurvedAnimation(
-        parent: _hoverController,
-        curve: Curves.easeInOut,
-      ),
-    );
+    _mainCtrl.forward();
 
-    _mainController.forward();
-    
-    // Start ambient animations after the logo settles
-    Future.delayed(const Duration(milliseconds: 600), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
-        _pulseController.repeat();
-        _hoverController.repeat(reverse: true);
+        _pulseCtrl.repeat();
+        _particleCtrl.repeat();
       }
     });
 
-    // 3.8 seconds delay before navigation to allow animation completion
-    Timer(const Duration(milliseconds: 3800), () {
+    Timer(const Duration(milliseconds: 3600), () {
       if (mounted) {
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const MainNavigation(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const MainNavigation(),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
-            transitionDuration: const Duration(milliseconds: 500),
+            transitionDuration: const Duration(milliseconds: 600),
           ),
         );
       }
     });
   }
 
+  void _updateParticles() {
+    if (!mounted) return;
+    setState(() {
+      for (final p in _particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0 || p.x > 1) p.vx = -p.vx;
+        if (p.y < 0 || p.y > 1) p.vy = -p.vy;
+      }
+    });
+  }
+
   @override
   void dispose() {
-    _mainController.dispose();
-    _pulseController.dispose();
-    _hoverController.dispose();
+    _mainCtrl.dispose();
+    _pulseCtrl.dispose();
+    _particleCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // Theme-dependent styles and assets
-    final backgroundColor1 = isDark ? const Color(0xFF030712) : const Color(0xFFF4F7FF);
-    final backgroundColor2 = isDark ? const Color(0xFF0B1530) : const Color(0xFFFFFFFF);
-    
-    final primaryColor = isDark ? const Color(0xFF00E5FF) : const Color(0xFF0066FF);
-
-    final titleColor = isDark ? Colors.white : const Color(0xFF1E293B);
-    final subtitleColor = isDark ? const Color(0xFF00E5FF) : const Color(0xFF0066FF);
+    final bgColor = isDark ? AppColors.darkBg : const Color(0xFFF0F4FF);
+    final accentColor = AppColors.accent;
+    final textColor = isDark ? AppColors.textDark : AppColors.textLight;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.center,
-            radius: 1.2,
-            colors: [backgroundColor2, backgroundColor1],
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedBuilder(
-                animation: Listenable.merge([_logoScale, _hoverOffset, _pulseController]),
-                builder: (context, child) {
-                  final scale = _logoScale.value;
-                  final hoverY = _hoverOffset.value;
-                  
-                  return Transform.translate(
-                    offset: Offset(0, hoverY),
-                    child: Transform.scale(
-                      scale: scale,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Outer Radar Pulse 2 (slight scale offset)
-                          Opacity(
-                            opacity: _radarOpacity.value * 0.5,
-                            child: Container(
-                              width: 90 * _radarScale.value,
-                              height: 90 * _radarScale.value,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: primaryColor,
-                                  width: 2.0,
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Outer Radar Pulse 1
-                          Opacity(
-                            opacity: _radarOpacity.value,
-                            child: Container(
-                              width: 130 * _radarScale.value,
-                              height: 130 * _radarScale.value,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: primaryColor.withValues(alpha: 0.5),
-                                  width: 1.0,
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Main Flight Logo Card
-                          RotationTransition(
-                            turns: _logoRotate,
-                            child: GlassContainer(
-                              borderRadius: 100,
-                              padding: const EdgeInsets.all(26),
-                              opacity: isDark ? 0.15 : 0.6,
-                              child: ClipOval(
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  width: 80,
-                                  height: 80,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 54),
-              
-              // Animated Text (UZDF)
-              AnimatedBuilder(
-                animation: Listenable.merge([_textFade, _textLetterSpacing]),
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _textFade.value,
-                    child: Text(
-                      'UZDF',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        color: titleColor,
-                        letterSpacing: _textLetterSpacing.value,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Animated Subtitle (УЗБЕКИСТАН)
-              FadeTransition(
-                opacity: _subtitleFade,
-                child: Text(
-                  'Uzbekistan Drone Federation',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: subtitleColor.withValues(alpha: 0.9),
-                    letterSpacing: 1.5,
+        width: double.infinity,
+        height: double.infinity,
+        color: bgColor,
+        child: Stack(
+          children: [
+            // Ambient glow
+            Positioned(
+              top: -100,
+              left: -100,
+              child: Container(
+                width: 400,
+                height: 400,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      accentColor.withValues(alpha: 0.08),
+                      Colors.transparent,
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+            Positioned(
+              bottom: -80,
+              right: -80,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF7C3AED).withValues(alpha: 0.07),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Particles
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _ParticlePainter(
+                  particles: _particles,
+                  color: accentColor,
+                ),
+              ),
+            ),
+            // Main content
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo with pulse
+                  AnimatedBuilder(
+                    animation: Listenable.merge(
+                        [_logoScale, _logoOpacity, _pulseCtrl]),
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _logoOpacity.value,
+                        child: Transform.scale(
+                          scale: _logoScale.value,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              // Pulse ring outer
+                              Opacity(
+                                opacity: _radarOpacity.value * 0.4,
+                                child: Container(
+                                  width: 140 * _radarScale.value,
+                                  height: 140 * _radarScale.value,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: accentColor,
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Pulse ring inner
+                              Opacity(
+                                opacity: _radarOpacity.value * 0.7,
+                                child: Container(
+                                  width: 100 * _radarScale.value,
+                                  height: 100 * _radarScale.value,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: accentColor.withValues(alpha: 0.6),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // Logo card
+                              Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark
+                                      ? AppColors.darkSurface
+                                      : Colors.white,
+                                  border: Border.all(
+                                    color: isDark
+                                        ? AppColors.darkBorder
+                                        : AppColors.lightBorder,
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: accentColor.withValues(alpha: 0.2),
+                                      blurRadius: 24,
+                                      spreadRadius: 4,
+                                    ),
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.3),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/logo.png',
+                                    width: 90,
+                                    height: 90,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 52),
+
+                  // UZDF Title with letter spacing animation
+                  AnimatedBuilder(
+                    animation:
+                        Listenable.merge([_textFade, _textLetterSpacing]),
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _textFade.value,
+                        child: Text(
+                          'UZDF',
+                          style: GoogleFonts.inter(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w900,
+                            color: textColor,
+                            letterSpacing: _textLetterSpacing.value,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Subtitle with slide-up animation
+                  AnimatedBuilder(
+                    animation:
+                        Listenable.merge([_subtitleFade, _subtitleSlide]),
+                    builder: (context, child) {
+                      return Opacity(
+                        opacity: _subtitleFade.value,
+                        child: Transform.translate(
+                          offset: Offset(0, _subtitleSlide.value),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Uzbekistan Drone Federation',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: accentColor,
+                                  letterSpacing: 2.0,
+                                ),
+                              ),
+                              const SizedBox(height: 48),
+                              // Loading indicator
+                              SizedBox(
+                                width: 32,
+                                height: 2,
+                                child: LinearProgressIndicator(
+                                  backgroundColor: accentColor.withValues(alpha: 0.15),
+                                  valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                                  borderRadius: BorderRadius.circular(1),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
+// ═══════════════════════════════════════
+// MAIN NAVIGATION — TESLA BOTTOM BAR
+// ═══════════════════════════════════════
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -417,10 +571,10 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
 
-  // Список всех экранов приложения
   final List<Widget> _screens = [
     const HomeScreen(),
     const BlogScreen(),
@@ -429,78 +583,53 @@ class _MainNavigationState extends State<MainNavigation> {
     const ProfileScreen(),
   ];
 
-  static const _navLabels = ['Курсы', 'Новости', 'Карта', 'Магазин', 'Профиль'];
+  static const _navItems = [
+    _NavItem(Icons.school_rounded, Icons.school_outlined, 'Курсы'),
+    _NavItem(Icons.article_rounded, Icons.article_outlined, 'Новости'),
+    _NavItem(Icons.map_rounded, Icons.map_outlined, 'Карта'),
+    _NavItem(Icons.shopping_bag_rounded, Icons.shopping_bag_outlined, 'Магазин'),
+    _NavItem(Icons.person_rounded, Icons.person_outlined, 'Профиль'),
+  ];
 
-  Widget _buildNavIcon(IconData icon, int index, bool isDark) {
-    final isSelected = _currentIndex == index;
-    final colorScheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        setState(() => _currentIndex = index);
-      },
-      child: Container(
-        width: 56,
-        height: 56,
-        color: Colors.transparent, // Expand hit test target
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? colorScheme.primary
-                    : Colors.transparent,
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.4),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Icon(
-                icon,
-                color: isSelected ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
-                size: 20,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              _navLabels[index],
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                letterSpacing: -0.2,
-              ),
-            ),
-          ],
-        ),
-      ),
+  late AnimationController _iconCtrl;
+  late Animation<double> _iconBounce;
+  int _prevIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _iconCtrl = AnimationController(vsync: this, duration: kNormal);
+    _iconBounce = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _iconCtrl, curve: kBounce),
     );
+  }
+
+  @override
+  void dispose() {
+    _iconCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onNavTap(int index) {
+    if (index == _currentIndex) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _prevIndex = _currentIndex;
+      _currentIndex = index;
+    });
+    _iconCtrl.forward(from: 0.0);
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final colorScheme = Theme.of(context).colorScheme;
+
     return ValueListenableBuilder<String?>(
       valueListenable: ApiService.tokenNotifier,
       builder: (context, token, child) {
         if (token == null) {
           return AuthScreen(
-            onLoginSuccess: () {
-              setState(() {
-                _currentIndex = 0;
-              });
-            },
+            onLoginSuccess: () => setState(() => _currentIndex = 0),
           );
         }
 
@@ -512,10 +641,12 @@ class _MainNavigationState extends State<MainNavigation> {
                 child: Stack(
                   children: [
                     AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      transitionBuilder: (Widget child, Animation<double> animation) {
+                      duration: kNormal,
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
                         return FadeTransition(
-                          opacity: animation,
+                          opacity: CurvedAnimation(
+                              parent: animation, curve: Curves.easeIn),
                           child: child,
                         );
                       },
@@ -524,45 +655,12 @@ class _MainNavigationState extends State<MainNavigation> {
                         child: _screens[_currentIndex],
                       ),
                     ),
+                    // Bottom Navigation Bar
                     Positioned(
-                      left: 20,
-                      right: 20,
-                      bottom: 24 + MediaQuery.of(context).padding.bottom,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(36),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                          child: Container(
-                            height: 68,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surface.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(36),
-                              border: Border.all(
-                                color: colorScheme.onSurface.withValues(alpha: 0.08),
-                                width: 1.0,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: colorScheme.shadow.withValues(alpha: isDark ? 0.2 : 0.05),
-                                  blurRadius: 16,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildNavIcon(Icons.school, 0, isDark),
-                                _buildNavIcon(Icons.article, 1, isDark),
-                                _buildNavIcon(Icons.map, 2, isDark),
-                                _buildNavIcon(Icons.shopping_cart, 3, isDark),
-                                _buildNavIcon(Icons.person, 4, isDark),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                      left: 16,
+                      right: 16,
+                      bottom: MediaQuery.of(context).padding.bottom + 16,
+                      child: _buildNavBar(isDark),
                     ),
                   ],
                 ),
@@ -573,4 +671,103 @@ class _MainNavigationState extends State<MainNavigation> {
       },
     );
   }
+
+  Widget _buildNavBar(bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          height: 66,
+          decoration: BoxDecoration(
+            color: (isDark ? AppColors.darkSurface : Colors.white)
+                .withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+              width: 0.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(_navItems.length, (i) {
+              return _buildNavItem(i, isDark);
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, bool isDark) {
+    final isSelected = _currentIndex == index;
+    final item = _navItems[index];
+    final activeColor = AppColors.accent;
+    final inactiveColor = AppColors.subtextDark;
+
+    return GestureDetector(
+      onTap: () => _onNavTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 58,
+        height: 66,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedBuilder(
+              animation: _iconBounce,
+              builder: (_, child) {
+                final scale =
+                    (isSelected && _currentIndex != _prevIndex)
+                        ? _iconBounce.value
+                        : 1.0;
+                return Transform.scale(scale: scale, child: child);
+              },
+              child: AnimatedContainer(
+                duration: kNormal,
+                curve: kSpring,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? activeColor.withValues(alpha: 0.15)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isSelected ? item.activeIcon : item.inactiveIcon,
+                  color: isSelected ? activeColor : inactiveColor,
+                  size: 22,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            AnimatedDefaultTextStyle(
+              duration: kFast,
+              style: GoogleFonts.inter(
+                fontSize: 9,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
+                letterSpacing: -0.2,
+              ),
+              child: Text(item.label),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem {
+  final IconData activeIcon;
+  final IconData inactiveIcon;
+  final String label;
+  const _NavItem(this.activeIcon, this.inactiveIcon, this.label);
 }

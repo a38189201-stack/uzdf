@@ -6,13 +6,13 @@ class AppState {
   factory AppState() => _instance;
   AppState._internal();
 
-  final ValueNotifier<bool> isDarkMode = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> isDarkMode = ValueNotifier<bool>(false);
   final ValueNotifier<String> currentLanguage = ValueNotifier<String>('ru');
 
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      isDarkMode.value = prefs.getBool('isDarkMode') ?? true;
+      isDarkMode.value = prefs.getBool('isDarkMode') ?? false;
       currentLanguage.value = prefs.getString('currentLanguage') ?? 'ru';
     } catch (e) {
       debugPrint('Failed to load shared preferences: $e');
@@ -64,6 +64,39 @@ class AppState {
       'settings_support': 'Тех. поддержка',
       'theme_dark': 'Темная тема',
       'theme_light': 'Светлая тема',
+
+      // Settings Screen
+      'settings_header_account': 'Аккаунт',
+      'settings_header_support': 'Поддержка и инфо',
+      'settings_header_cache': 'Оформление и кэш',
+      'settings_header_actions': 'Действия',
+      'settings_edit_profile': 'Редактировать профиль',
+      'settings_security': 'Безопасность',
+      'settings_notifications': 'Уведомления',
+      'settings_privacy': 'Конфиденциальность',
+      'settings_language': 'Язык приложения',
+      'settings_subscription': 'Моя подписка',
+      'settings_help_support': 'Помощь и поддержка',
+      'settings_terms': 'Условия и политика',
+      'settings_orders': 'Мои заказы',
+      'settings_faq': 'Инструкция и FAQ',
+      'settings_free_space': 'Очистить кэш',
+      'settings_data_saver': 'Экономия трафика',
+      'settings_report_prob': 'Сообщить о проблеме',
+      'settings_add_account': 'Добавить аккаунт',
+      'settings_conn_debug': 'Отладка подключения',
+      'settings_logout': 'Выйти из аккаунта',
+
+      // Edit Profile Screen
+      'edit_profile_title': 'Редактирование профиля',
+      'edit_profile_name': 'Имя',
+      'edit_profile_name_hint': 'Введите ваше имя',
+      'edit_profile_email': 'Email',
+      'edit_profile_email_hint': 'Введите email',
+      'edit_profile_password': 'Пароль',
+      'edit_profile_dob': 'Дата рождения',
+      'edit_profile_country': 'Страна / Регион',
+      'edit_profile_save': 'Сохранить изменения',
     },
     'uz': {
       'nav_courses': 'Kurslar',
@@ -109,6 +142,39 @@ class AppState {
       'settings_support': 'Qo\'llab-quvvatlash',
       'theme_dark': 'Tungi rejim',
       'theme_light': 'Kunduzgi rejim',
+
+      // Settings Screen
+      'settings_header_account': 'Hisob',
+      'settings_header_support': 'Yordam va ma\'lumot',
+      'settings_header_cache': 'Dizayn va kesh',
+      'settings_header_actions': 'Harakatlar',
+      'settings_edit_profile': 'Profilni tahrirlash',
+      'settings_security': 'Xavfsizlik',
+      'settings_notifications': 'Bildirishnomalar',
+      'settings_privacy': 'Maxfiylik',
+      'settings_language': 'Ilova tili',
+      'settings_subscription': 'Mening obunam',
+      'settings_help_support': 'Yordam va qo\'llab-quvvatlash',
+      'settings_terms': 'Foydalanish shartlari',
+      'settings_orders': 'Mening buyurtmalarim',
+      'settings_faq': 'Qo\'llanma va FAQ',
+      'settings_free_space': 'Keshni tozalash',
+      'settings_data_saver': 'Trafikni tejash',
+      'settings_report_prob': 'Muammo haqida xabar berish',
+      'settings_add_account': 'Hisob qo\'shish',
+      'settings_conn_debug': 'Ulanish sozlamalari',
+      'settings_logout': 'Hisobdan chiqish',
+
+      // Edit Profile Screen
+      'edit_profile_title': 'Profilni tahrirlash',
+      'edit_profile_name': 'Ism',
+      'edit_profile_name_hint': 'Ismingizni kiriting',
+      'edit_profile_email': 'Email',
+      'edit_profile_email_hint': 'Emailingizni kiriting',
+      'edit_profile_password': 'Parol',
+      'edit_profile_dob': 'Tug\'ilgan sana',
+      'edit_profile_country': 'Mamlakat / Hudud',
+      'edit_profile_save': 'O\'zgarishlarni saqlash',
     },
     'en': {
       'nav_courses': 'Courses',
@@ -154,6 +220,39 @@ class AppState {
       'settings_support': 'Support',
       'theme_dark': 'Dark Mode',
       'theme_light': 'Light Mode',
+
+      // Settings Screen
+      'settings_header_account': 'Account',
+      'settings_header_support': 'Support & Info',
+      'settings_header_cache': 'Theme & Cache',
+      'settings_header_actions': 'Actions',
+      'settings_edit_profile': 'Edit profile',
+      'settings_security': 'Security',
+      'settings_notifications': 'Notifications',
+      'settings_privacy': 'Privacy',
+      'settings_language': 'App Language',
+      'settings_subscription': 'My Subscription',
+      'settings_help_support': 'Help & Support',
+      'settings_terms': 'Terms and Policies',
+      'settings_orders': 'My Orders',
+      'settings_faq': 'FAQ & Guidelines',
+      'settings_free_space': 'Free up space',
+      'settings_data_saver': 'Data Saver',
+      'settings_report_prob': 'Report a problem',
+      'settings_add_account': 'Add account',
+      'settings_conn_debug': 'Connection Debug',
+      'settings_logout': 'Log out',
+
+      // Edit Profile Screen
+      'edit_profile_title': 'Edit Profile',
+      'edit_profile_name': 'Name',
+      'edit_profile_name_hint': 'Your full name',
+      'edit_profile_email': 'Email',
+      'edit_profile_email_hint': 'Your email address',
+      'edit_profile_password': 'Password',
+      'edit_profile_dob': 'Date of Birth',
+      'edit_profile_country': 'Country/Region',
+      'edit_profile_save': 'Save changes',
     }
   };
 

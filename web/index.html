@@ -180,13 +180,13 @@
     <div class="hero-drone-container">
       <div class="hero-drone-3d-wrapper">
         <model-viewer
-          src="/models/drone.glb"
+          src="/models/racer.glb"
           alt="БПЛА дрон"
           auto-rotate
           camera-controls
           disable-zoom
           rotation-per-second="30deg"
-          style="width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: transparent; --progress-bar-color: transparent;"
+          style="width: 100%; height: 100%; background: transparent; --progress-bar-color: transparent;"
         ></model-viewer>
       </div>
       <img src="/img/hero_drone.png" alt="Drone" class="hero-drone-img">
@@ -1183,6 +1183,34 @@
     <div style="display:flex; gap:12px">
       <button class="btn btn-primary" style="flex:1; justify-content:center" onclick="submitSupportRequest()" data-i18n="shop_btn_send">Отправить</button>
       <button class="btn btn-secondary" onclick="closeSupportModal()" data-i18n="modal_cancel_btn">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELIVERY MODAL -->
+<div class="cart-overlay" id="delivery-modal" style="display:none; justify-content:center; align-items:center; z-index:100000">
+  <div class="cart-panel" style="max-width:500px; margin:10% auto; height:auto; border-radius:16px; padding:32px; background:var(--bg-card); border:1px solid var(--border)">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+      <h3 style="margin:0" id="delivery-modal-title">Данные доставки</h3>
+      <button class="cart-close" onclick="closeDeliveryModal()" style="position:static">✕</button>
+    </div>
+    <div id="delivery-alert"></div>
+    <input type="hidden" id="delivery-order-id">
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Город</label>
+      <input type="text" id="delivery-city" placeholder="Например, Ташкент" style="background:#111; color:#fff; border:1px solid var(--border); border-radius:4px; padding:10px; width:100%">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Адрес доставки</label>
+      <input type="text" id="delivery-address" placeholder="Улица, дом, квартира" style="background:#111; color:#fff; border:1px solid var(--border); border-radius:4px; padding:10px; width:100%">
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <label>Контактный телефон</label>
+      <input type="text" id="delivery-contact" placeholder="+998901234567" style="background:#111; color:#fff; border:1px solid var(--border); border-radius:4px; padding:10px; width:100%">
+    </div>
+    <div style="display:flex; gap:12px">
+      <button class="btn btn-primary" style="flex:1; justify-content:center" onclick="submitDeliveryInfo()">Сохранить</button>
+      <button class="btn btn-secondary" onclick="closeDeliveryModal()">Отмена</button>
     </div>
   </div>
 </div>
@@ -3648,6 +3676,53 @@ async function saveProfileInfo() {
   }
 }
 
+function openDeliveryModal(orderId, city, address, contact) {
+  document.getElementById('delivery-order-id').value = orderId;
+  document.getElementById('delivery-city').value = city;
+  document.getElementById('delivery-address').value = address;
+  document.getElementById('delivery-contact').value = contact;
+  document.getElementById('delivery-alert').innerHTML = '';
+  document.getElementById('delivery-modal').style.display = 'flex';
+}
+
+function closeDeliveryModal() {
+  document.getElementById('delivery-modal').style.display = 'none';
+}
+
+async function submitDeliveryInfo() {
+  const orderId = document.getElementById('delivery-order-id').value;
+  const deliveryCity = document.getElementById('delivery-city').value.trim();
+  const deliveryAddress = document.getElementById('delivery-address').value.trim();
+  const deliveryContact = document.getElementById('delivery-contact').value.trim();
+  const token = localStorage.getItem('uzdf_token');
+  const alertDiv = document.getElementById('delivery-alert');
+  
+  if (!deliveryCity || !deliveryAddress || !deliveryContact) {
+    alertDiv.innerHTML = `<div class="alert alert-error">Все поля обязательны к заполнению</div>`;
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API}/orders/${orderId}/delivery`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({ deliveryCity, deliveryAddress, deliveryContact })
+    });
+    
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Ошибка при сохранении адреса');
+    
+    showToast('Данные доставки успешно сохранены!', 'success');
+    closeDeliveryModal();
+    loadMyOrdersHistory();
+  } catch (err) {
+    alertDiv.innerHTML = `<div class="alert alert-error">${err.message}</div>`;
+  }
+}
+
 async function loadMyOrdersHistory() {
   const container = document.getElementById('my-orders-list');
   const token = localStorage.getItem('uzdf_token');
@@ -3665,6 +3740,22 @@ async function loadMyOrdersHistory() {
     container.innerHTML = orders.map(o => {
       const isPaid = o.status === 'COMPLETED';
       const isPending = o.status === 'PENDING';
+      
+      const hasDelivery = !!(o.deliveryCity || o.deliveryAddress || o.deliveryContact);
+      const deliveryHTML = `
+        <div class="order-delivery-info" style="margin-top:12px; padding:12px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; font-size:0.85rem">
+          <div style="font-weight:600; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📍 Доставка:</span>
+            ${isPending ? `<a href="#" onclick="openDeliveryModal(${o.id}, '${esc(o.deliveryCity || '')}', '${esc(o.deliveryAddress || '')}', '${esc(o.deliveryContact || '')}'); return false;" style="color:var(--blue); text-decoration:none; font-size:0.8rem">${hasDelivery ? 'Изменить' : 'Указать адрес'}</a>` : ''}
+          </div>
+          ${hasDelivery ? `
+            <div><strong>Город:</strong> ${esc(o.deliveryCity || '—')}</div>
+            <div><strong>Адрес:</strong> ${esc(o.deliveryAddress || '—')}</div>
+            <div><strong>Телефон:</strong> ${esc(o.deliveryContact || '—')}</div>
+          ` : `
+            <div style="color:var(--text-dim)">Адрес доставки не указан</div>
+          `}
+        </div>`;
       
       const timelineHTML = `
         <div class="order-timeline" style="display:flex; justify-content:space-between; margin-top:20px; position:relative; padding:10px 0">
@@ -3706,11 +3797,12 @@ async function loadMyOrdersHistory() {
             <span style="color:var(--text-dim); font-size:0.9rem" data-i18n="shop_total">Итого</span>
             <strong style="color:var(--blue); font-size:1.15rem">$${o.totalAmount.toFixed(2)}</strong>
           </div>
+          ${deliveryHTML}
           ${timelineHTML}
           ${isPending ? `<button class="btn btn-primary btn-sm" onclick="openPaymentModal(${JSON.stringify(o).replace(/"/g, '&quot;')})" style="margin-top:16px; width:100%; justify-content:center" data-i18n="pay_btn_confirm">Оплатить заказ</button>` : ''}
         </div>`;
     }).join('');
-  } catch {
+  } catch (err) {
     container.innerHTML = '<p style="color:var(--danger)">Ошибка загрузки истории заказов.</p>';
   }
 }
