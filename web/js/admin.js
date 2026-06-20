@@ -201,6 +201,10 @@ const api = async(url,opt={})=>{
   const r=await fetch(API+url,{...opt,headers:authH()});
   const d=await r.json();
   if(!r.ok) {
+    if(r.status === 401) {
+      adminLogout();
+      return;
+    }
     showToast(d.error || 'Произошла ошибка при запросе', 'error');
     throw new Error(d.error || 'API Error');
   }
