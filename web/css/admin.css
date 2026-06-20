@@ -1,57 +1,58 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
-  --bg: #000000;
-  --bg-gradient: radial-gradient(circle at center, #0a1128 0%, #000000 100%);
-  --bg-grid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000' viewBox='0 0 1000 1000'%3E%3Cpath d='M 100,0 C 200,300 800,400 900,1000 M 0,200 C 300,500 500,800 1000,900 M 0,500 C 400,600 600,400 1000,500' fill='none' stroke='rgba(0,102,255,0.06)' stroke-width='1.5'/%3E%3C/svg%3E");
-  --bg-card: rgba(10, 10, 10, 0.7);
-  --bg-card2: rgba(20, 20, 20, 0.85);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.18);
-  --blue: #0066ff;
-  --blue-hover: #0052cc;
-  --blue-dim: rgba(0, 102, 255, 0.15);
-  --red: #0066ff;
-  --red-hover: #0052cc;
-  --text: #ffffff;
-  --text-muted: #a3a3a3;
-  --text-dim: #737373;
-  --success: #0066ff;
+  --bg: #030712;
+  --bg-gradient: radial-gradient(circle at top, #0f172a 0%, #030712 100%);
+  --bg-grid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M 100,0 L 100,100 M 0,100 L 100,100' fill='none' stroke='rgba(99,102,241,0.022)' stroke-width='0.5'/%3E%3C/svg%3E");
+  --bg-card: rgba(15, 23, 42, 0.6);
+  --bg-card2: rgba(30, 41, 59, 0.65);
+  --border: rgba(255, 255, 255, 0.05);
+  --border-hover: rgba(255, 255, 255, 0.1);
+  --blue: #3b82f6;
+  --blue-hover: #2563eb;
+  --blue-dim: rgba(59, 130, 246, 0.1);
+  --red: #ef4444;
+  --red-hover: #dc2626;
+  --red-dim: rgba(239, 68, 68, 0.1);
+  --text: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-dim: #6b7280;
+  --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
   --sidebar-w: 260px;
-  --shadow: 0 20px 40px 0 rgba(0, 0, 0, 0.6);
-  --radius: 20px;
+  --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  --radius: 12px;
   --green: #10b981;
   --amber: #f59e0b;
-  --accent: #0066ff;
-  --bg-secondary: rgba(30, 30, 30, 0.6);
+  --accent: #3b82f6;
+  --bg-secondary: rgba(30, 41, 59, 0.4);
 }
 
 [data-theme="light"] {
   --bg: #f8fafc;
-  --bg-gradient: radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);
-  --bg-grid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000' viewBox='0 0 1000 1000'%3E%3Cpath d='M 100,0 C 200,300 800,400 900,1000 M 0,200 C 300,500 500,800 1000,900 M 0,500 C 400,600 600,400 1000,500' fill='none' stroke='rgba(0,102,255,0.06)' stroke-width='1.5'/%3E%3C/svg%3E");
-  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-gradient: radial-gradient(circle at top, #ffffff 0%, #f1f5f9 100%);
+  --bg-grid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M 100,0 L 100,100 M 0,100 L 100,100' fill='none' stroke='rgba(99,102,241,0.015)' stroke-width='0.5'/%3E%3C/svg%3E");
+  --bg-card: rgba(255, 255, 255, 0.8);
   --bg-card2: rgba(241, 245, 249, 0.9);
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.18);
-  --blue: #0066ff;
-  --blue-hover: #0052cc;
-  --blue-dim: rgba(0, 102, 255, 0.1);
-  --red: #0066ff;
-  --red-hover: #0052cc;
+  --border: rgba(15, 23, 42, 0.06);
+  --border-hover: rgba(15, 23, 42, 0.12);
+  --blue: #3b82f6;
+  --blue-hover: #2563eb;
+  --blue-dim: rgba(59, 130, 246, 0.08);
+  --red: #ef4444;
+  --red-hover: #dc2626;
   --text: #0f172a;
   --text-muted: #475569;
   --text-dim: #64748b;
-  --success: #059669;
+  --success: #10b981;
   --warning: #d97706;
   --danger: #dc2626;
-  --shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.05);
-  --green: #059669;
+  --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --green: #10b981;
   --amber: #d97706;
-  --accent: #0066ff;
-  --bg-secondary: rgba(226, 232, 240, 0.8);
+  --accent: #3b82f6;
+  --bg-secondary: rgba(241, 245, 249, 0.8);
 }
 
 [data-theme="light"] .sidebar {
@@ -315,9 +316,11 @@ body::before {
 }
 
 .sidebar-icon {
-  font-size: 1.1rem;
-  width: 20px;
-  text-align: center;
+  width: 18px;
+  height: 18px;
+  stroke-width: 2px;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .sidebar-footer {
@@ -383,6 +386,11 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.sidebar-logout svg {
+  width: 18px;
+  height: 18px;
 }
 
 .sidebar-logout:hover {
@@ -473,6 +481,12 @@ body::before {
   align-items: center;
   justify-content: center;
   color: var(--blue);
+}
+
+.stat-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2px;
 }
 
 .stat-info {
@@ -692,27 +706,27 @@ tbody tr:hover {
 }
 
 .btn-primary {
-  background: var(--red);
+  background: var(--blue);
   color: #fff;
-  box-shadow: 0 4px 10px rgba(244, 63, 94, 0.2);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
 }
 
 .btn-primary:hover {
-  background: var(--red-hover);
+  background: var(--blue-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(244, 63, 94, 0.3);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.3);
 }
 
 .btn-blue {
   background: var(--blue);
   color: #fff;
-  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);
 }
 
 .btn-blue:hover {
   background: var(--blue-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.3);
 }
 
 .btn-secondary {
@@ -728,13 +742,13 @@ tbody tr:hover {
 }
 
 .btn-danger {
-  background: rgba(244, 63, 94, 0.1);
+  background: rgba(239, 68, 68, 0.1);
   color: var(--red);
-  border: 1px solid rgba(244, 63, 94, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .btn-danger:hover {
-  background: rgba(244, 63, 94, 0.18);
+  background: rgba(239, 68, 68, 0.18);
   transform: translateY(-1px);
 }
 

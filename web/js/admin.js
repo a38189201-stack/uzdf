@@ -155,7 +155,7 @@ function showSection(name) {
   document.querySelectorAll('.sidebar-item').forEach(b=>b.classList.remove('active'));
   document.getElementById('section-'+name).classList.add('active');
   document.getElementById('nav-'+name).classList.add('active');
-  const titles={dashboard:'Dashboard',news:'Новости',map:'Карта зон',users:'Пользователи',courses:'Курсы',shop:'Магазин',orders:'Заказы',support:'Поддержка',tgbot:'Telegram Бот',certificates:'Реестр сертификатов',system:'Системный мониторинг'};
+  const titles={dashboard:'Dashboard',news:'Новости',map:'Карта зон',users:'Пользователи',courses:'Курсы',shop:'Магазин',orders:'Заказы',support:'Поддержка',tgbot:'Telegram Бот',certificates:'Реестр сертификатов',achievements:'Достижения',system:'Системный мониторинг'};
   document.getElementById('topbar-title').textContent=titles[name]||name;
   
   if (name !== 'tgbot' && tgChatRefreshInterval) {
@@ -187,6 +187,7 @@ function showSection(name) {
     loadTgLogs();
   }
   if(name==='certificates') loadCertificates();
+  if(name==='achievements') loadAchievements();
   if(name==='system') {
     loadSystemStatus();
     loadSystemSettings();
@@ -610,28 +611,30 @@ function renderUdAchievements() {
   const container = document.getElementById('ud-achievements-container');
   const unlocked = new Set(udData.achievements ? udData.achievements.map(a => a.achievementId) : []);
   
-  const achievementsList = [
-    { id: 'first_steps', name: 'Первые шаги', desc: 'Начать обучение на первом курсе', icon: '🚀' },
-    { id: 'theory_master', name: 'Мастер теории', desc: 'Пройти все теоретические уроки', icon: '🎓' },
-    { id: 'certified_pilot', name: 'Сертифицированный пилот', desc: 'Успешно сдать финальный экзамен', icon: '🏆' },
-    { id: 'shop_purchase', name: 'Покупатель UZDF', desc: 'Совершить покупку в магазине оборудования', icon: '👑' }
+  const list = (typeof allAchievements !== 'undefined' && allAchievements && allAchievements.length) ? allAchievements : [
+    { id: 'first_steps', nameRu: 'Первые шаги', descRu: 'Начать обучение на первом курсе', icon: '🚀' },
+    { id: 'theory_master', nameRu: 'Мастер теории', descRu: 'Пройти все теоретические уроки', icon: '🎓' },
+    { id: 'certified_pilot', nameRu: 'Сертифицированный пилот', descRu: 'Успешно сдать финальный экзамен', icon: '🏆' },
+    { id: 'shop_purchase', nameRu: 'Покупатель UZDF', descRu: 'Совершить покупку в магазине оборудования', icon: '👑' }
   ];
 
   container.innerHTML = `
     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px">
-      ${achievementsList.map(a => {
+      ${list.map(a => {
         const isUnlocked = unlocked.has(a.id);
         const userAch = udData.achievements ? udData.achievements.find(ua => ua.achievementId === a.id) : null;
         const unlockedDate = userAch ? fmtDate(userAch.unlockedAt) : '';
+        const name = a.nameRu || a.name || a.id;
+        const desc = a.descRu || a.desc || '';
         
         return `
           <div style="background:rgba(255,255,255,0.01); border:1px solid ${isUnlocked ? 'rgba(0,102,255,0.3)' : 'var(--border)'}; opacity:${isUnlocked ? '1' : '0.5'}; padding:16px; border-radius:10px; display:flex; gap:16px; align-items:center">
             <div style="font-size:2rem; width:50px; height:50px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.03); border-radius:50%">
-              ${a.icon}
+              ${a.icon || '🏆'}
             </div>
             <div>
-              <div style="font-weight:bold; color:var(--text)">${a.name}</div>
-              <div style="font-size:0.8rem; color:var(--text-muted); margin:2px 0">${a.desc}</div>
+              <div style="font-weight:bold; color:var(--text)">${esc(name)}</div>
+              <div style="font-size:0.8rem; color:var(--text-muted); margin:2px 0">${esc(desc)}</div>
               ${isUnlocked ? `<div style="font-size:0.75rem; color:var(--success)">Получено: ${unlockedDate}</div>` : `<div style="font-size:0.75rem; color:var(--text-dim)">Заблокировано</div>`}
             </div>
           </div>
@@ -2184,6 +2187,9 @@ function renderCertificatesTable(items) {
       actionBtn = `<button class="btn btn-success btn-sm" onclick="activateCertificateAction('${c.certificateUuid}')">Активировать</button>`;
     }
 
+    const web3Btn = `<button class="btn btn-secondary btn-sm" onclick="openCertWeb3Modal('${c.certificateUuid}', '${esc(c.userName).replace(/'/g, "\\'")}', '${esc(c.courseTitle).replace(/'/g, "\\'")}', '${c.certificateIssuedAt}')" style="margin-left:6px; background:rgba(0,229,255,0.1); color:#00E5FF; border:1px solid rgba(0,229,255,0.25); font-weight:bold; height:32px; padding:0 10px; display:inline-flex; align-items:center;">QR/Web3</button>`;
+    actionBtn += web3Btn;
+
     return `
       <tr>
         <td>
@@ -2447,6 +2453,192 @@ async function revokeAllSessionsAction() {
   } catch (err) {
     showToast(err.message || 'Не удалось завершить сессии', 'error');
   }
+}
+
+// ─────────────────────────────────────────────
+// ACHIEVEMENTS CONSTRUCTOR FUNCTIONS
+// ─────────────────────────────────────────────
+let allAchievements = [];
+
+async function loadAchievements() {
+  try {
+    const tbody = document.getElementById('achievements-table-body');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 24px;"><div class="loading"><div class="spinner"></div><span>Загрузка достижений...</span></div></td></tr>';
+    
+    allAchievements = await api('/admin/achievements');
+    renderAchievementsTable(allAchievements);
+  } catch (err) {
+    console.error('Error loading achievements:', err);
+    showToast('Не удалось загрузить достижения', 'error');
+  }
+}
+
+function renderAchievementsTable(items) {
+  const tbody = document.getElementById('achievements-table-body');
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 32px; color: var(--text-muted);">Достижения не найдены</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = items.map(a => {
+    return `
+      <tr>
+        <td style="font-size: 1.5rem; text-align: center;">${a.icon || '🏆'}</td>
+        <td><code>${esc(a.id)}</code></td>
+        <td>
+          <div style="font-weight: 600;">RU: ${esc(a.nameRu)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">UZ: ${esc(a.nameUz || '—')}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">EN: ${esc(a.nameEn || '—')}</div>
+        </td>
+        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${esc(a.descRu)}">${esc(a.descRu)}</td>
+        <td><strong style="color: var(--blue);">${a.expReward} XP</strong></td>
+        <td>
+          <span class="badge badge-blue" style="font-size: 0.75rem;">${esc(a.triggerEvent)}</span>
+          ${a.minCount > 1 ? `<span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 4px;">(min: ${a.minCount})</span>` : ''}
+        </td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="openAchievementModal('${a.id}')">Редактировать</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAchievement('${a.id}')" style="margin-left: 6px;">Удалить</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openAchievementModal(id = null) {
+  document.getElementById('ach-alert').innerHTML = '';
+  document.getElementById('ach-id-original').value = id || '';
+  
+  if (id) {
+    const ach = allAchievements.find(x => x.id === id);
+    document.getElementById('ach-modal-title').textContent = 'Редактировать достижение';
+    document.getElementById('ach-id').value = ach.id;
+    document.getElementById('ach-id').disabled = true; // disable editing ID for existing
+    document.getElementById('ach-icon').value = ach.icon || '🏆';
+    document.getElementById('ach-name-ru').value = ach.nameRu || '';
+    document.getElementById('ach-name-uz').value = ach.nameUz || '';
+    document.getElementById('ach-name-en').value = ach.nameEn || '';
+    document.getElementById('ach-desc-ru').value = ach.descRu || '';
+    document.getElementById('ach-desc-uz').value = ach.descUz || '';
+    document.getElementById('ach-desc-en').value = ach.descEn || '';
+    document.getElementById('ach-exp').value = ach.expReward || 100;
+    document.getElementById('ach-trigger').value = ach.triggerEvent || 'course_step';
+    document.getElementById('ach-min-count').value = ach.minCount || 1;
+  } else {
+    document.getElementById('ach-modal-title').textContent = 'Добавить достижение';
+    document.getElementById('ach-id').value = '';
+    document.getElementById('ach-id').disabled = false;
+    document.getElementById('ach-icon').value = '🏆';
+    document.getElementById('ach-name-ru').value = '';
+    document.getElementById('ach-name-uz').value = '';
+    document.getElementById('ach-name-en').value = '';
+    document.getElementById('ach-desc-ru').value = '';
+    document.getElementById('ach-desc-uz').value = '';
+    document.getElementById('ach-desc-en').value = '';
+    document.getElementById('ach-exp').value = 100;
+    document.getElementById('ach-trigger').value = 'course_step';
+    document.getElementById('ach-min-count').value = 1;
+  }
+  
+  document.getElementById('achievement-modal').style.display = 'flex';
+}
+
+function closeAchievementModal() {
+  document.getElementById('achievement-modal').style.display = 'none';
+}
+
+async function saveAchievement() {
+  const originalId = document.getElementById('ach-id-original').value;
+  const id = document.getElementById('ach-id').value.trim();
+  const icon = document.getElementById('ach-icon').value.trim();
+  const nameRu = document.getElementById('ach-name-ru').value.trim();
+  const nameUz = document.getElementById('ach-name-uz').value.trim();
+  const nameEn = document.getElementById('ach-name-en').value.trim();
+  const descRu = document.getElementById('ach-desc-ru').value.trim();
+  const descUz = document.getElementById('ach-desc-uz').value.trim();
+  const descEn = document.getElementById('ach-desc-en').value.trim();
+  const expReward = parseInt(document.getElementById('ach-exp').value) || 0;
+  const triggerEvent = document.getElementById('ach-trigger').value;
+  const minCount = parseInt(document.getElementById('ach-min-count').value) || 1;
+
+  if (!id || !nameRu || !descRu) {
+    document.getElementById('ach-alert').innerHTML = '<div class="alert alert-danger">Заполните обязательные поля (ID, Русское название и описание)</div>';
+    return;
+  }
+
+  if (!originalId) {
+    if (allAchievements.some(x => x.id === id)) {
+      document.getElementById('ach-alert').innerHTML = `<div class="alert alert-danger">Достижение с ID "${id}" уже существует</div>`;
+      return;
+    }
+  }
+
+  const updatedAchievements = [...allAchievements];
+  const newObj = {
+    id, icon, nameRu, nameUz: nameUz || nameRu, nameEn: nameEn || nameRu,
+    descRu, descUz: descUz || descRu, descEn: descEn || descRu,
+    expReward, triggerEvent, minCount
+  };
+
+  if (originalId) {
+    const idx = updatedAchievements.findIndex(x => x.id === originalId);
+    if (idx !== -1) updatedAchievements[idx] = newObj;
+  } else {
+    updatedAchievements.push(newObj);
+  }
+
+  try {
+    await api('/admin/achievements', {
+      method: 'POST',
+      body: JSON.stringify(updatedAchievements)
+    });
+    
+    showToast('Достижение успешно сохранено', 'success');
+    closeAchievementModal();
+    loadAchievements();
+  } catch (err) {
+    document.getElementById('ach-alert').innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
+  }
+}
+
+async function deleteAchievement(id) {
+  if (!confirm(`Вы действительно хотите удалить достижение "${id}"?`)) return;
+  
+  const updated = allAchievements.filter(x => x.id !== id);
+  try {
+    await api('/admin/achievements', {
+      method: 'POST',
+      body: JSON.stringify(updated)
+    });
+    showToast('Достижение удалено', 'success');
+    loadAchievements();
+  } catch (err) {
+    showToast(err.message || 'Ошибка удаления достижения', 'error');
+  }
+}
+
+// ─────────────────────────────────────────────
+// CERTIFICATE QR & WEB3 CREDENTIALS MODAL
+// ─────────────────────────────────────────────
+function openCertWeb3Modal(uuid, name, course, issuedAt) {
+  const origin = window.location.origin;
+  const verifyUrl = `${origin}/verify-certificate/${uuid}`;
+  
+  document.getElementById('cwm-qr').src = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}`;
+  document.getElementById('cwm-student').textContent = name;
+  document.getElementById('cwm-course').textContent = course;
+  document.getElementById('cwm-issued').textContent = 'Выдан: ' + (issuedAt ? new Date(issuedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
+  
+  const mockHash = '0x' + Array.from(uuid).map(c => c.charCodeAt(0).toString(16)).join('').substring(0, 64).padEnd(64, '0');
+  document.getElementById('cwm-hash').textContent = mockHash;
+  document.getElementById('cwm-ipfs').textContent = 'ipfs://Qm' + mockHash.substring(10, 44);
+  document.getElementById('cwm-download-btn').href = `/verify-certificate/${uuid}/credential`;
+  
+  document.getElementById('cert-web3-modal').style.display = 'flex';
+}
+
+function closeCertWeb3Modal() {
+  document.getElementById('cert-web3-modal').style.display = 'none';
 }
 
 

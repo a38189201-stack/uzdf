@@ -1852,11 +1852,11 @@ function levelLabel(t, lang) {
   return { beginner: 'Начинающий', intermediate: 'Средний', advanced: 'Продвинутый', pro: 'Профессионал' }[t] || 'Курс';
 }
 
-const ACHIEVEMENTS = {
-  first_steps: { nameRu: "Первый взлет", nameUz: "Birinchi parvoz", nameEn: "First Takeoff", descRu: "Сделайте свой первый шаг в курсах пилотирования.", descUz: "Uchish kurslaridagi birinchi qadamingizni bosing.", descEn: "Take your first step in drone piloting courses." },
-  theory_master: { nameRu: "Теоретик авиации", nameUz: "Aviatsiya nazariyotchisi", nameEn: "Aviation Theorist", descRu: "Успешно пройдите хотя бы 1 учебный курс.", descUz: "Kamida 1 ta kursni muvaffaqiyatli yakunlang.", descEn: "Successfully complete at least 1 training course." },
-  certified_pilot: { nameRu: "Дипломированный ас", nameUz: "Sertifikatlangan uchuvchi", nameEn: "Certified Ace", descRu: "Пройдите 3 курса обучения.", descUz: "3 ta o'qitish kursini yakunlang.", descEn: "Complete 3 training courses." },
-  all_courses: { nameRu: "Безопасное небо", nameUz: "Xavfsiz osmon", nameEn: "Safe Airspace", descRu: "Полностью пройдите все 5 учебных курсов.", descUz: "Barcha 5 ta kursni to'liq yakunlang.", descEn: "Complete all 5 training courses." }
+let ACHIEVEMENTS = {
+  first_steps: { nameRu: "Первый взлет", nameUz: "Birinchi parvoz", nameEn: "First Takeoff", descRu: "Сделайте свой первый шаг в курсах пилотирования.", descUz: "Uchish kurslaridagi birinchi qadamingizni bosing.", descEn: "Take your first step in drone piloting courses.", icon: "🚀" },
+  theory_master: { nameRu: "Теоретик авиации", nameUz: "Aviatsiya nazariyotchisi", nameEn: "Aviation Theorist", descRu: "Успешно пройдите хотя бы 1 учебный курс.", descUz: "Kamida 1 ta kursni muvaffaqiyatli yakunlang.", descEn: "Successfully complete at least 1 training course.", icon: "🎓" },
+  certified_pilot: { nameRu: "Дипломированный ас", nameUz: "Sertifikatlangan uchuvchi", nameEn: "Certified Ace", descRu: "Пройдите 3 курса обучения.", descUz: "3 ta o'qitish kursini yakunlang.", descEn: "Complete 3 training courses.", icon: "🏆" },
+  all_courses: { nameRu: "Безопасное небо", nameUz: "Xavfsiz osmon", nameEn: "Safe Airspace", descRu: "Полностью пройдите все 5 учебных курсов.", descUz: "Barcha 5 ta kursni to'liq yakunlang.", descEn: "Complete all 5 training courses.", icon: "👑" }
 };
 
 // ── NAVIGATION & PAGE CONTROLS ──
@@ -2115,18 +2115,36 @@ function updateUserNavbarState() {
   }
 }
 
-// ── GET INDEX STATS ──
 async function loadHomeStats() {
   try {
-    const [zones, courses, news] = await Promise.all([
+    const [zones, courses, news, achievements] = await Promise.all([
       fetch(`${API}/zones`).then(r => r.json()),
       fetch(`${API}/courses`).then(r => r.json()),
-      fetch(`${API}/news`).then(r => r.json())
+      fetch(`${API}/news`).then(r => r.json()),
+      fetch(`${API}/achievements`).then(r => r.json()).catch(() => null)
     ]);
     
     allZones = Array.isArray(zones) ? zones : [];
     allCourses = Array.isArray(courses) ? courses : [];
     allNews = Array.isArray(news) ? news : [];
+
+    if (achievements && Array.isArray(achievements)) {
+      ACHIEVEMENTS = {};
+      achievements.forEach(a => {
+        ACHIEVEMENTS[a.id] = {
+          nameRu: a.nameRu,
+          nameUz: a.nameUz,
+          nameEn: a.nameEn,
+          descRu: a.descRu,
+          descUz: a.descUz,
+          descEn: a.descEn,
+          icon: a.icon || '🏆',
+          expReward: a.expReward,
+          triggerEvent: a.triggerEvent,
+          minCount: a.minCount
+        };
+      });
+    }
 
     document.getElementById('stat-zones').textContent = allZones.length;
     document.getElementById('stat-courses').textContent = allCourses.length;
@@ -3820,7 +3838,7 @@ function renderProfileAchievements() {
     return `
       <div class="achievement-card ${active ? 'unlocked' : 'locked'}" style="opacity:${active ? '1' : '0.4'}; background:var(--bg-card); border:1px solid ${active ? 'var(--blue)' : 'var(--border)'}; border-radius:12px; padding:20px; display:flex; gap:16px; align-items:center; position:relative">
         <div class="achievement-icon" style="font-size:2.2rem; background:${active ? 'var(--blue-dim)' : 'rgba(0,0,0,0.1)'}; border-radius:50%; width:60px; height:60px; display:flex; align-items:center; justify-content:center">
-          ${key === 'first_steps' ? '🚀' : key === 'theory_master' ? '🎓' : key === 'certified_pilot' ? '🏆' : '👑'}
+          ${details.icon || '🏆'}
         </div>
         <div>
           <h4 style="margin:0; font-size:1.05rem; font-weight:700">${esc(name)}</h4>
