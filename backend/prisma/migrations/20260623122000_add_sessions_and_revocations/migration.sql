@@ -1,0 +1,25 @@
+-- AlterTable CourseCompletion
+ALTER TABLE "CourseCompletion" ADD COLUMN "isRevoked" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "CourseCompletion" ADD COLUMN "revokedAt" TIMESTAMP(3);
+ALTER TABLE "CourseCompletion" ADD COLUMN "revokedBy" TEXT;
+ALTER TABLE "CourseCompletion" ADD COLUMN "revokeReason" TEXT;
+
+-- CreateTable Session
+CREATE TABLE "Session" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "token" TEXT NOT NULL,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastActive" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isRevoked" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Session_token_key" ON "Session"("token");
+
+-- AddForeignKey
+ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
