@@ -4,6 +4,17 @@
 
 ---
 
+## 📲 Скачать приложение и исходный код (Последняя версия)
+
+* **🤖 Скачать мобильное приложение (Android APK)**: [**app-release.apk**](https://github.com/u001us/UZDF/raw/main/app-release.apk) *(прямая ссылка на последнюю сборку)*
+* **📦 Скачать исходный код (ZIP)**: [**Скачать ZIP-архив**](https://github.com/u001us/UZDF/archive/refs/heads/main.zip)
+* **💻 Клонировать репозиторий через Git**:
+  ```bash
+  git clone https://github.com/u001us/UZDF.git
+  ```
+
+---
+
 ## 🏗️ Архитектура и Стек технологий
 
 Проект разделен на три ключевые части:
