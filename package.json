@@ -5,6 +5,6 @@
   "scripts": {
     "postinstall": "npm install --prefix backend",
     "build": "npx --prefix backend prisma generate --schema=backend/prisma/schema.prisma",
-    "start": "node backend/repair_migration.js && npx --prefix backend prisma migrate deploy --schema=backend/prisma/schema.prisma && node backend/server.js"
+    "start": "node backend/repair_migration.js && npx --prefix backend prisma migrate deploy --schema=backend/prisma/schema.prisma && node backend/seed.js && node backend/server.js"
   }
 }
