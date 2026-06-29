@@ -1,0 +1,40 @@
+# Конфигурация для сборки Flutter iOS приложения на Codemagic
+# Подробнее: https://docs.codemagic.io/yaml-schema/yaml-integration/
+
+workflows:
+  flutter-ios-build:
+    name: UZDF iOS Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1 # Сборка на Mac Mini M1
+    working_directory: mobile  # Указываем подкаталог с Flutter-проектом
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+
+    scripts:
+      - name: Инициализация Flutter-окружения
+        script: |
+          flutter doctor
+      
+      - name: Получение зависимостей Flutter
+        script: |
+          flutter pub get
+
+      - name: Сборка iOS-версии без подписи сертификатом
+        # Эта команда компилирует приложение и проверяет, что сборка под iOS собирается успешно.
+        # Для сборки полноценного .ipa с подписью настройте "iOS code signing" в веб-интерфейсе Codemagic.
+        script: |
+          flutter build ios --release --no-codesign
+
+    artifacts:
+      # Сохраняем скомпилированный архив приложения .app
+      - build/ios/iphoneos/*.app

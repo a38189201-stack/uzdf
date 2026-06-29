@@ -70,5 +70,23 @@
 	<string>This application requires access to your location to display weather conditions and navigation features on the map.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This application requires access to your location to display weather conditions and navigation features on the map.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php</string>
+			</array>
+		</dict>
+	</array>
+	<key>GIDClientID</key>
+	<string>623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php.apps.googleusercontent.com</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>tg</string>
+	</array>
 </dict>
 </plist>

@@ -540,6 +540,8 @@ class _StepDetailScreenState extends State<StepDetailScreen>
   // For reading progress bar
   double _readProgress = 0.0;
 
+  static const _securityChannel = MethodChannel('uzdf.security');
+
   @override
   void initState() {
     super.initState();
@@ -547,6 +549,11 @@ class _StepDetailScreenState extends State<StepDetailScreen>
     _isQuiz = _currentStep['type'] == 'quiz';
     _isFinalExam = _currentStep['isFinalExam'] ?? false;
     _activateSecureMode();
+    _securityChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onScreenshotTaken') {
+        _simulateViolation();
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadStepData());
   }
 
@@ -587,6 +594,7 @@ class _StepDetailScreenState extends State<StepDetailScreen>
   @override
   void dispose() {
     _deactivateSecureMode();
+    _securityChannel.setMethodCallHandler(null);
     _readingTimer?.cancel();
     _videoTimer?.cancel();
     _scrollController?.dispose();
@@ -594,23 +602,39 @@ class _StepDetailScreenState extends State<StepDetailScreen>
   }
 
   Future<void> _activateSecureMode() async {
-    if (!kIsWeb && Platform.isAndroid) {
-      try {
-        await FlutterWindowManagerPlus.addFlags(
-            FlutterWindowManagerPlus.FLAG_SECURE);
-      } catch (e) {
-        debugPrint('Error setting FLAG_SECURE: $e');
+    if (!kIsWeb) {
+      if (Platform.isAndroid) {
+        try {
+          await FlutterWindowManagerPlus.addFlags(
+              FlutterWindowManagerPlus.FLAG_SECURE);
+        } catch (e) {
+          debugPrint('Error setting FLAG_SECURE: $e');
+        }
+      } else if (Platform.isIOS) {
+        try {
+          await _securityChannel.invokeMethod('setSecure', true);
+        } catch (e) {
+          debugPrint('Error setting secure mode on iOS: $e');
+        }
       }
     }
   }
 
   Future<void> _deactivateSecureMode() async {
-    if (!kIsWeb && Platform.isAndroid) {
-      try {
-        await FlutterWindowManagerPlus.clearFlags(
-            FlutterWindowManagerPlus.FLAG_SECURE);
-      } catch (e) {
-        debugPrint('Error clearing FLAG_SECURE: $e');
+    if (!kIsWeb) {
+      if (Platform.isAndroid) {
+        try {
+          await FlutterWindowManagerPlus.clearFlags(
+              FlutterWindowManagerPlus.FLAG_SECURE);
+        } catch (e) {
+          debugPrint('Error clearing FLAG_SECURE: $e');
+        }
+      } else if (Platform.isIOS) {
+        try {
+          await _securityChannel.invokeMethod('setSecure', false);
+        } catch (e) {
+          debugPrint('Error clearing secure mode on iOS: $e');
+        }
       }
     }
   }
