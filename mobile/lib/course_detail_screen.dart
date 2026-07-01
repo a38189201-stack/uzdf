@@ -593,11 +593,14 @@ class _StepDetailScreenState extends State<StepDetailScreen>
 
   @override
   void dispose() {
-    _deactivateSecureMode();
-    _securityChannel.setMethodCallHandler(null);
+    // Cancel timers and scroll controller first
     _readingTimer?.cancel();
     _videoTimer?.cancel();
     _scrollController?.dispose();
+    // Deactivate secure mode BEFORE nulling the handler so the channel call goes through
+    _deactivateSecureMode();
+    // Null handler only after deactivation has been sent
+    Future.microtask(() => _securityChannel.setMethodCallHandler(null));
     super.dispose();
   }
 

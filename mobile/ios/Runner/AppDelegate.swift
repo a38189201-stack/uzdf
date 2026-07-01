@@ -7,6 +7,9 @@ import GoogleMaps
   private var methodChannel: FlutterMethodChannel?
   private var secureOverlay: UIView?
   private var methodChannelTimer: Timer?
+  /// Tracks whether secure mode was explicitly activated from Flutter.
+  /// If the app returns from background and this is false, any leftover overlay is swept.
+  private var isSecureActive: Bool = false
 
   override func application(
     _ application: UIApplication,
@@ -19,6 +22,17 @@ import GoogleMaps
       self,
       selector: #selector(didTakeScreenshot),
       name: UIApplication.userDidTakeScreenshotNotification,
+      object: nil
+    )
+
+    // Auto-cleanup: if the user exits the course while going to background,
+    // the MethodChannel call may be silently dropped on iOS/iPad.
+    // When the app becomes active again and secure mode was NOT intentionally set,
+    // sweep any leftover overlays so the screen is not permanently blocked.
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appDidBecomeActive),
+      name: UIApplication.didBecomeActiveNotification,
       object: nil
     )
 
@@ -51,6 +65,16 @@ import GoogleMaps
     methodChannel?.invokeMethod("onScreenshotTaken", arguments: nil)
   }
 
+  /// Called every time the app returns to foreground.
+  /// If isSecureActive is false but an overlay is still present (stuck), remove it.
+  @objc private func appDidBecomeActive() {
+    if !isSecureActive {
+      DispatchQueue.main.async {
+        self.removeAllSecureOverlays()
+      }
+    }
+  }
+
   private func setupMethodChannel() {
     methodChannel?.setMethodCallHandler { [weak self] (call, result) in
       guard let self = self else { return }
@@ -75,58 +99,72 @@ import GoogleMaps
   private func setSecure(_ secure: Bool) {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
-      let tag = 9911
+
+      self.isSecureActive = secure
 
       if secure {
-        // Prevent duplicate overlays in the active window
-        guard let window = self.getActiveWindow() else { return }
-        guard window.viewWithTag(tag) == nil else { return }
-
-        // Safe approach: place a blurred overlay on top, never moving rootView
-        let overlay = UIView(frame: window.bounds)
-        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        overlay.backgroundColor = .black
-        overlay.tag = tag
-
-        // Blur effect
-        let blurEffect = UIBlurEffect(style: .dark)
-        let blurView = UIVisualEffectView(effect: blurEffect)
-        blurView.frame = overlay.bounds
-        blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        overlay.addSubview(blurView)
-
-        // Lock icon
-        let lockLabel = UILabel()
-        lockLabel.text = "🔒"
-        lockLabel.font = .systemFont(ofSize: 48)
-        lockLabel.sizeToFit()
-        lockLabel.center = CGPoint(x: overlay.bounds.midX, y: overlay.bounds.midY)
-        lockLabel.autoresizingMask = [
-          .flexibleLeftMargin, .flexibleRightMargin,
-          .flexibleTopMargin, .flexibleBottomMargin
-        ]
-        overlay.addSubview(lockLabel)
-
-        window.addSubview(overlay)
-        self.secureOverlay = overlay
+        self.addSecureOverlay()
       } else {
-        // Tag-based cleanup: search all windows of all active scenes to ensure overlay is removed
-        if #available(iOS 13.0, *) {
-          UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .forEach { window in
-              window.viewWithTag(tag)?.removeFromSuperview()
-            }
-        }
-        // Fallbacks for older iOS versions / alternative window hierarchies
-        UIApplication.shared.keyWindow?.viewWithTag(tag)?.removeFromSuperview()
-        self.window?.viewWithTag(tag)?.removeFromSuperview()
-        
-        self.secureOverlay?.removeFromSuperview()
-        self.secureOverlay = nil
+        self.removeAllSecureOverlays()
       }
     }
+  }
+
+  private func addSecureOverlay() {
+    let tag = 9911
+    guard let window = self.getActiveWindow() else { return }
+    // Prevent duplicate
+    guard window.viewWithTag(tag) == nil else { return }
+
+    let overlay = UIView(frame: window.bounds)
+    overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    overlay.backgroundColor = .black
+    overlay.tag = tag
+
+    let blurEffect = UIBlurEffect(style: .dark)
+    let blurView = UIVisualEffectView(effect: blurEffect)
+    blurView.frame = overlay.bounds
+    blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    overlay.addSubview(blurView)
+
+    let lockLabel = UILabel()
+    lockLabel.text = "🔒"
+    lockLabel.font = .systemFont(ofSize: 48)
+    lockLabel.sizeToFit()
+    lockLabel.center = CGPoint(x: overlay.bounds.midX, y: overlay.bounds.midY)
+    lockLabel.autoresizingMask = [
+      .flexibleLeftMargin, .flexibleRightMargin,
+      .flexibleTopMargin, .flexibleBottomMargin
+    ]
+    overlay.addSubview(lockLabel)
+
+    window.addSubview(overlay)
+    self.secureOverlay = overlay
+  }
+
+  /// Exhaustively removes the secure overlay from ALL windows across ALL scenes.
+  /// This is the fix for iPad/iOS where the overlay could get stuck if dispose()
+  /// fired while the app was backgrounded and the MethodChannel call was silently dropped.
+  private func removeAllSecureOverlays() {
+    let tag = 9911
+
+    // Primary: remove stored reference
+    self.secureOverlay?.removeFromSuperview()
+    self.secureOverlay = nil
+
+    // Secondary: sweep all connected scene windows (iOS 13+, covers iPad multi-window)
+    if #available(iOS 13.0, *) {
+      UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap { $0.windows }
+        .forEach { window in
+          window.viewWithTag(tag)?.removeFromSuperview()
+        }
+    }
+
+    // Fallback for older iOS
+    UIApplication.shared.keyWindow?.viewWithTag(tag)?.removeFromSuperview()
+    self.window?.viewWithTag(tag)?.removeFromSuperview()
   }
 
   // MARK: — Safe window lookup compatible with iOS 13+ Scenes and iPad
