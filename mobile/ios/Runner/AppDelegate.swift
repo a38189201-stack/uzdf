@@ -11,7 +11,7 @@ import GoogleMaps
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GMSServices.provideAPIKey("AIzaSyClf2QwFJHt9tUK4YguaMyiM6WG64jR3u4")
+    GMSServices.provideAPIKey("AIzaSyA6NEfgtmZFEIPrX4MB02jAxvFl8kPoT9s")
 
     // Subscribe to screenshot notifications
     NotificationCenter.default.addObserver(
