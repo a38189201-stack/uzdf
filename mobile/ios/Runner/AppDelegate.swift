@@ -3,7 +3,7 @@ import UIKit
 import GoogleMaps
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var methodChannel: FlutterMethodChannel?
   private var secureOverlay: UIView?
 
@@ -122,5 +122,9 @@ import GoogleMaps
         .first(where: { $0.isKeyWindow })
     }
     return UIApplication.shared.keyWindow
+  }
+
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 }
