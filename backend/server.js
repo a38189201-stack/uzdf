@@ -15,8 +15,12 @@ const app = express();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'uzdf-super-secret-2024';
 const { OAuth2Client } = require('google-auth-library');
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php.apps.googleusercontent.com';
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+// Web Client ID (used on Android and Web)
+const GOOGLE_WEB_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php.apps.googleusercontent.com';
+// iOS Client ID — must be included in audience for iOS idToken verification
+const GOOGLE_IOS_CLIENT_ID = process.env.GOOGLE_IOS_CLIENT_ID || '623890287900-80i2011gle3j68gsmdp0tmnbh2vpafo1.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = GOOGLE_WEB_CLIENT_ID; // keep for backward compat
+const googleClient = new OAuth2Client(GOOGLE_WEB_CLIENT_ID);
 
 
 const pendingRegistrations = new Map();
@@ -564,7 +568,8 @@ app.post('/auth/google-real', async (req, res) => {
 
     const ticket = await googleClient.verifyIdToken({
       idToken: idToken,
-      audience: GOOGLE_CLIENT_ID,
+      // Accept tokens from both Web and iOS clients
+      audience: [GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID],
     });
 
     const payload = ticket.getPayload();

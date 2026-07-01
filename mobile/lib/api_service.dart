@@ -107,11 +107,16 @@ class ApiService {
       debugPrint('Successfully resolved API Base URL: $_resolvedBaseUrl');
       return _resolvedBaseUrl!;
     } catch (_) {
-      // Default fallback
-      if (!kIsWeb && Platform.isAndroid) {
-        _resolvedBaseUrl = 'http://190.191.3.112:3000';
-      } else {
+      // Default fallback — use production URL for all real devices (iOS and Android)
+      // localhost only makes sense in a web browser context
+      if (kIsWeb) {
         _resolvedBaseUrl = 'http://localhost:3000';
+      } else if (!kIsWeb && Platform.isAndroid) {
+        // Android emulator: 10.0.2.2 maps to host machine localhost
+        _resolvedBaseUrl = productionUrl;
+      } else {
+        // iOS real device / iPad — always use production
+        _resolvedBaseUrl = productionUrl;
       }
       debugPrint('Fallback API Base URL: $_resolvedBaseUrl');
       return _resolvedBaseUrl!;
@@ -219,18 +224,29 @@ class ApiService {
   static Future<bool> login(String email, String password) async {
     try {
       final url = await getBaseUrl();
+      debugPrint('Login attempt to: $url/auth/login');
       final response = await http.post(
         Uri.parse('$url/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
-      );
+      ).timeout(const Duration(seconds: 10));
+      debugPrint('Login response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         token = data['token'];
         currentUser = data['user'] as Map<String, dynamic>?;
         await saveSession();
         return true;
+      } else {
+        debugPrint('Login error body: ${response.body}');
       }
+    } on SocketException catch (e) {
+      debugPrint('Login SocketException (no network/server unreachable): $e');
+      // Reset cached URL so next attempt re-discovers
+      _resolvedBaseUrl = null;
+    } on TimeoutException catch (e) {
+      debugPrint('Login TimeoutException: $e');
+      _resolvedBaseUrl = null;
     } catch (e) {
       debugPrint('Login error: $e');
     }
@@ -310,18 +326,27 @@ class ApiService {
   static Future<bool> loginWithGoogleReal(String idToken) async {
     try {
       final url = await getBaseUrl();
+      debugPrint('Google login attempt to: $url/auth/google-real');
       final response = await http.post(
         Uri.parse('$url/auth/google-real'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'idToken': idToken}),
-      );
+      ).timeout(const Duration(seconds: 15));
+      debugPrint('Google login response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         token = data['token'];
         currentUser = data['user'] as Map<String, dynamic>?;
         await saveSession();
         return true;
+      } else {
+        debugPrint('Google login error body: ${response.body}');
       }
+    } on SocketException catch (e) {
+      debugPrint('Google login SocketException: $e');
+      _resolvedBaseUrl = null;
+    } on TimeoutException catch (e) {
+      debugPrint('Google login TimeoutException: $e');
     } catch (e) {
       debugPrint('Google Real Login error: $e');
     }

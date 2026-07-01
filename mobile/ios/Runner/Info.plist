@@ -41,8 +41,6 @@
 					<string>flutter</string>
 					<key>UISceneDelegateClassName</key>
 					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-					<key>UISceneStoryboardFile</key>
-					<string>Main</string>
 				</dict>
 			</array>
 		</dict>
@@ -51,8 +49,6 @@
 	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -77,16 +73,34 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php</string>
+				<!-- iOS Google Sign-In REVERSED_CLIENT_ID -->
+				<string>com.googleusercontent.apps.623890287900-80i2011gle3j68gsmdp0tmnbh2vpafo1</string>
 			</array>
 		</dict>
 	</array>
 	<key>GIDClientID</key>
-	<string>623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php.apps.googleusercontent.com</string>
+	<string>623890287900-80i2011gle3j68gsmdp0tmnbh2vpafo1.apps.googleusercontent.com</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>
 		<string>tg</string>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Allow HTTP to production Railway server -->
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>uzdf.up.railway.app</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+		<!-- Allow HTTP to local development server -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

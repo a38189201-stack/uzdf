@@ -3,39 +3,15 @@ import UIKit
 import GoogleMaps
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
   private var methodChannel: FlutterMethodChannel?
-  private var secureTextField: UITextField?
-  private var secureContainer: UIView?
+  private var secureOverlay: UIView?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GMSServices.provideAPIKey("AIzaSyClf2QwFJHt9tUK4YguaMyiM6WG64jR3u4")
-    
-    let controller = window?.rootViewController as? FlutterViewController ?? 
-      (UIApplication.shared.windows.first?.rootViewController as? FlutterViewController)
-      
-    if let binaryMessenger = controller?.binaryMessenger {
-      methodChannel = FlutterMethodChannel(name: "uzdf.security", binaryMessenger: binaryMessenger)
-      methodChannel?.setMethodCallHandler { [weak self] (call, result) in
-        guard let self = self else { return }
-        if call.method == "setSecure" {
-          if let args = call.arguments as? [String: Any], let secure = args["secure"] as? Bool {
-            self.setSecure(secure)
-            result(true)
-          } else if let secure = call.arguments as? Bool {
-            self.setSecure(secure)
-            result(true)
-          } else {
-            result(FlutterError(code: "INVALID_ARGUMENT", message: "Expected boolean", details: nil))
-          }
-        } else {
-          result(FlutterMethodNotImplemented)
-        }
-      }
-    }
 
     // Subscribe to screenshot notifications
     NotificationCenter.default.addObserver(
@@ -44,69 +20,107 @@ import GoogleMaps
       name: UIApplication.userDidTakeScreenshotNotification,
       object: nil
     )
-    
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+
+    // NOTE: GeneratedPluginRegistrant is called by FlutterSceneDelegate automatically.
+    // Do NOT call it here again to avoid double-registration crash.
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+
+    // Set up method channel after Flutter engine is ready via window
+    // (works in both Scene-based and legacy window-based scenarios)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+      guard let self = self else { return }
+      if let controller = self.window?.rootViewController as? FlutterViewController {
+        self.methodChannel = FlutterMethodChannel(
+          name: "uzdf.security",
+          binaryMessenger: controller.binaryMessenger
+        )
+        self.setupMethodChannel()
+      }
+    }
+
+    return result
   }
 
   @objc private func didTakeScreenshot() {
     methodChannel?.invokeMethod("onScreenshotTaken", arguments: nil)
   }
 
-  private func getActiveWindow() -> UIWindow? {
-    if let window = self.window {
-      return window
+  private func setupMethodChannel() {
+    methodChannel?.setMethodCallHandler { [weak self] (call, result) in
+      guard let self = self else { return }
+      if call.method == "setSecure" {
+        let secure: Bool
+        if let args = call.arguments as? [String: Any], let s = args["secure"] as? Bool {
+          secure = s
+        } else if let s = call.arguments as? Bool {
+          secure = s
+        } else {
+          result(FlutterError(code: "INVALID_ARGUMENT", message: "Expected boolean", details: nil))
+          return
+        }
+        self.setSecure(secure)
+        result(true)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
     }
-    if #available(iOS 13.0, *) {
-      return UIApplication.shared.connectedScenes
-        .filter { $0.activationState == .foregroundActive }
-        .first(where: { $0 is UIWindowScene })
-        .flatMap { $0 as? UIWindowScene }?
-        .windows
-        .first(where: { $0.isKeyWindow })
-    }
-    return UIApplication.shared.keyWindow
   }
-
+  // MARK: — Safe secure overlay (does NOT touch rootViewController.view hierarchy)
   private func setSecure(_ secure: Bool) {
     DispatchQueue.main.async { [weak self] in
       guard let self = self else { return }
-      guard let window = self.getActiveWindow() else { return }
-      
+
       if secure {
-        guard self.secureTextField == nil else { return }
-        
-        let field = UITextField()
-        field.isSecureTextEntry = true
-        field.isUserInteractionEnabled = false
-        window.addSubview(field)
-        
-        if let container = field.subviews.first {
-          container.frame = window.bounds
-          container.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-          window.addSubview(container)
-          
-          if let rootView = window.rootViewController?.view {
-            container.addSubview(rootView)
-          }
-          self.secureTextField = field
-          self.secureContainer = container
-        }
+        guard self.secureOverlay == nil else { return }
+        guard let window = self.getActiveWindow() else { return }
+
+        // Safe approach: place a blurred overlay on top, never moving rootView
+        let overlay = UIView(frame: window.bounds)
+        overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        overlay.backgroundColor = .black
+
+        // Blur effect
+        let blurEffect = UIBlurEffect(style: .dark)
+        let blurView = UIVisualEffectView(effect: blurEffect)
+        blurView.frame = overlay.bounds
+        blurView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        overlay.addSubview(blurView)
+
+        // Lock icon
+        let lockLabel = UILabel()
+        lockLabel.text = "🔒"
+        lockLabel.font = .systemFont(ofSize: 48)
+        lockLabel.sizeToFit()
+        lockLabel.center = CGPoint(x: overlay.bounds.midX, y: overlay.bounds.midY)
+        lockLabel.autoresizingMask = [
+          .flexibleLeftMargin, .flexibleRightMargin,
+          .flexibleTopMargin, .flexibleBottomMargin
+        ]
+        overlay.addSubview(lockLabel)
+
+        window.addSubview(overlay)
+        self.secureOverlay = overlay
       } else {
-        guard let field = self.secureTextField, let container = self.secureContainer else { return }
-        
-        if let rootView = container.subviews.first {
-          window.addSubview(rootView)
-        }
-        
-        container.removeFromSuperview()
-        field.removeFromSuperview()
-        self.secureTextField = nil
-        self.secureContainer = nil
+        self.secureOverlay?.removeFromSuperview()
+        self.secureOverlay = nil
       }
     }
   }
 
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  // MARK: — Safe window lookup compatible with iOS 13+ Scenes and iPad
+  private func getActiveWindow() -> UIWindow? {
+    // Prefer the window already assigned to AppDelegate
+    if let window = self.window, !window.isHidden {
+      return window
+    }
+    // For multi-scene iPad (iOS 13+)
+    if #available(iOS 13.0, *) {
+      return UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .filter { $0.activationState == .foregroundActive }
+        .flatMap { $0.windows }
+        .first(where: { $0.isKeyWindow })
+    }
+    return UIApplication.shared.keyWindow
   }
 }

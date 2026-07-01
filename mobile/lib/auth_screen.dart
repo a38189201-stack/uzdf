@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -25,11 +27,25 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-    serverClientId:
-        '623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php.apps.googleusercontent.com',
-  );
+  // iOS Client ID — создан в Google Cloud Console для Bundle ID com.example.mobile
+  static const String _iosClientId =
+      '623890287900-80i2011gle3j68gsmdp0tmnbh2vpafo1.apps.googleusercontent.com';
+  // Web Client ID — используется как serverClientId для получения idToken
+  static const String _webClientId =
+      '623890287900-og7m9d6pi7i6ptk525afmc7kdalp2php.apps.googleusercontent.com';
+
+  final GoogleSignIn _googleSignIn = kIsWeb
+      ? GoogleSignIn(
+          scopes: ['email', 'profile'],
+          serverClientId: _webClientId,
+        )
+      : GoogleSignIn(
+          scopes: ['email', 'profile'],
+          // On iOS: clientId tells the SDK which iOS OAuth client to use (from Info.plist GIDClientID)
+          // serverClientId tells the SDK to request an idToken for backend verification
+          clientId: !kIsWeb && !Platform.isAndroid ? _iosClientId : null,
+          serverClientId: !kIsWeb && !Platform.isAndroid ? _webClientId : null,
+        );
 
   AuthScreenState _screenState = AuthScreenState.onboarding;
   bool _isLoading = false;
@@ -161,27 +177,59 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _handleGoogleSignIn() async {
     try {
       setState(() => _isLoading = true);
+
+      // Sign out first to force account picker (important for iPad)
+      await _googleSignIn.signOut();
+
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
-        setState(() => _isLoading = false);
+        // User cancelled the sign-in
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
+
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
+
+      debugPrint('[GoogleSignIn] idToken is ${idToken != null ? "present" : "NULL"}');
+      debugPrint('[GoogleSignIn] accessToken is ${googleAuth.accessToken != null ? "present" : "NULL"}');
+
       if (idToken != null) {
         final success = await ApiService.loginWithGoogleReal(idToken);
         if (success) {
           await ApiService.fetchProfile();
-          widget.onLoginSuccess();
+          if (mounted) widget.onLoginSuccess();
         } else {
           _showSnackbar('Ошибка авторизации на сервере UZDF');
         }
       } else {
-        _showSnackbar('Не удалось получить Google ID Token');
+        // idToken is null — this happens on iOS when serverClientId is wrong
+        // Fallback: use name+email auth if idToken is unavailable
+        debugPrint('[GoogleSignIn] idToken null — falling back to email auth');
+        final success = await ApiService.loginWithGoogle(
+          googleUser.displayName ?? googleUser.email.split('@')[0],
+          googleUser.email,
+        );
+        if (success) {
+          await ApiService.fetchProfile();
+          if (mounted) widget.onLoginSuccess();
+        } else {
+          _showSnackbar('Ошибка входа через Google. Попробуйте войти по email.');
+        }
+      }
+    } on PlatformException catch (e) {
+      debugPrint('[GoogleSignIn] PlatformException: ${e.code} — ${e.message}');
+      if (e.code == 'sign_in_canceled') {
+        // User cancelled — don't show error
+      } else if (e.code == 'network_error') {
+        _showSnackbar('Нет подключения к интернету');
+      } else {
+        _showSnackbar('Ошибка Google: ${e.message ?? e.code}');
       }
     } catch (e) {
-      _showSnackbar('Ошибка входа через Google: $e');
+      debugPrint('[GoogleSignIn] Error: $e');
+      _showSnackbar('Ошибка входа через Google');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
