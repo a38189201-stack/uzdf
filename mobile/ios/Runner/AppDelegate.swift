@@ -6,6 +6,7 @@ import GoogleMaps
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var methodChannel: FlutterMethodChannel?
   private var secureOverlay: UIView?
+  private var methodChannelTimer: Timer?
 
   override func application(
     _ application: UIApplication,
@@ -26,15 +27,20 @@ import GoogleMaps
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
 
     // Set up method channel after Flutter engine is ready via window
-    // (works in both Scene-based and legacy window-based scenarios)
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-      guard let self = self else { return }
+    // (polls every 100ms until the view controller is ready to ensure registration works 100%)
+    self.methodChannelTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+      guard let self = self else {
+        timer.invalidate()
+        return
+      }
       if let controller = self.getActiveWindow()?.rootViewController as? FlutterViewController {
         self.methodChannel = FlutterMethodChannel(
           name: "uzdf.security",
           binaryMessenger: controller.binaryMessenger
         )
         self.setupMethodChannel()
+        timer.invalidate()
+        self.methodChannelTimer = nil
       }
     }
 

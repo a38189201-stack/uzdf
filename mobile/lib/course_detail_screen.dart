@@ -1079,8 +1079,10 @@ class _StepDetailScreenState extends State<StepDetailScreen>
     final type = step['type'] ?? 'text';
     final textColor = isDark ? AppColors.textDark : AppColors.textLight;
 
+    Widget mainContent;
+
     if (_isBlocked) {
-      return Scaffold(
+      mainContent = Scaffold(
         appBar: const GlassAppBar(),
         body: LiquidBackground(
           child: Center(
@@ -1127,10 +1129,8 @@ class _StepDetailScreenState extends State<StepDetailScreen>
           ),
         ),
       );
-    }
-
-    if (_isLoading) {
-      return Scaffold(
+    } else if (_isLoading) {
+      mainContent = Scaffold(
         backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
         body: Center(
           child: CircularProgressIndicator(
@@ -1139,127 +1139,116 @@ class _StepDetailScreenState extends State<StepDetailScreen>
           ),
         ),
       );
-    }
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(60),
-        child: Column(
-          children: [
-            GlassAppBar(
-              title: Text(step['title'] ?? '',
-                  style: const TextStyle(letterSpacing: -0.5)),
-              actions: [
-                if (type == 'video')
-                  IconButton(
-                    icon: Icon(Icons.screenshot_monitor,
-                        color: AppColors.subtextDark, size: 20),
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      _simulateViolation();
-                    },
-                  ),
-              ],
-            ),
-            // Reading progress bar (for text type)
-            if (type == 'text')
-              AnimatedProgressBar(
-                value: _scrollCompleted ? 1.0 : _readProgress,
-                height: 3,
-                color: _scrollCompleted ? AppColors.success : AppColors.accent,
-              ),
-          ],
-        ),
-      ),
-      body: LiquidBackground(
-        child: SafeArea(
+    } else {
+      mainContent = Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
           child: Column(
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics()),
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (step['imageUrl'] != null &&
-                          step['imageUrl'].toString().trim().isNotEmpty) ...[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.network(
-                            step['imageUrl'],
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return const SkeletonLoader(
-                                  width: double.infinity,
-                                  height: 200,
-                                  borderRadius: 16);
-                            },
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: AppColors.danger.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.broken_image,
-                                    color: AppColors.danger),
+              GlassAppBar(
+                title: Text(step['title'] ?? '',
+                    style: const TextStyle(letterSpacing: -0.5)),
+                actions: [
+                  if (type == 'video')
+                    IconButton(
+                      icon: Icon(Icons.screenshot_monitor,
+                          color: AppColors.subtextDark, size: 20),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _simulateViolation();
+                      },
+                    ),
+                ],
+              ),
+              // Reading progress bar (for text type)
+              if (type == 'text')
+                AnimatedProgressBar(
+                  value: _scrollCompleted ? 1.0 : _readProgress,
+                  height: 3,
+                  color: _scrollCompleted ? AppColors.success : AppColors.accent,
+                ),
+            ],
+          ),
+        ),
+        body: LiquidBackground(
+          child: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics()),
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (step['imageUrl'] != null &&
+                            step['imageUrl'].toString().trim().isNotEmpty) ...[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.network(
+                              step['imageUrl'],
+                              height: 200,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const SkeletonLoader(
+                                    width: double.infinity,
+                                    height: 200,
+                                    borderRadius: 16);
+                              },
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Container(
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: AppColors.danger.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.broken_image,
+                                      color: AppColors.danger),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                      if (!_isQuiz) ...[
-                        // Video timer display
-                        if (type == 'video' && _remainingVideoSeconds > 0) ...[
-                          LiquidGlassCard(
-                            padding: const EdgeInsets.all(20),
-                            margin: const EdgeInsets.only(bottom: 20),
-                            child: Column(
-                              children: [
-                                Text(
-                                  'Посмотрите видео перед продолжением',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    color: AppColors.subtextDark,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  '${(_remainingVideoSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingVideoSeconds % 60).toString().padLeft(2, '0')}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 40,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.accent,
-                                    letterSpacing: -1,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                AnimatedProgressBar(
-                                  value: _videoDuration > 0
-                                      ? 1 -
-                                          (_remainingVideoSeconds /
-                                              _videoDuration)
-                                      : 0,
-                                  color: AppColors.accent,
-                                ),
-                              ],
-                            ),
-                          ),
+                          const SizedBox(height: 20),
                         ],
-                        Text(
-                          step['content'] ?? '',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            height: 1.7,
+                        if (!_isQuiz) ...[
+                          // Video timer display
+                          if (type == 'video' && _remainingVideoSeconds > 0) ...[
+                            LiquidGlassCard(
+                              padding: const EdgeInsets.all(20),
+                              margin: const EdgeInsets.only(bottom: 20),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    'Посмотрите видео перед продолжением',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      color: AppColors.subtextDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    '${(_remainingVideoSeconds ~/ 60).toString().padLeft(2, '0')}:${(_remainingVideoSeconds % 60).toString().padLeft(2, '0')}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.accent,
+                                      letterSpacing: -1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  AnimatedProgressBar(
+                                    value: _videoDuration > 0
+                                        ? 1 -
+                                            (_remainingVideoSeconds /
+                                                _videoDuration)
+                                        : 0,
+                                    color: AppColors.accent,
                             color: textColor,
                             letterSpacing: -0.2,
                           ),
