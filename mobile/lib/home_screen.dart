@@ -119,118 +119,123 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ? courses.first as Map<String, dynamic>
                         : null);
 
-                return CustomScrollView(
-                  physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics()),
-                  slivers: [
-                    _buildSliverAppBar(state, isDark),
-                    SliverPadding(
-                      padding: EdgeInsets.only(
-                        top: 0,
-                        bottom: MediaQuery.of(context).padding.bottom +
-                            66 +
-                            16 +
-                            24,
-                      ),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final delay = index * 70;
-                            final itemAnim = CurvedAnimation(
-                              parent: _listController,
-                              curve: Interval(
-                                (delay / 700.0).clamp(0.0, 1.0),
-                                ((delay + 400.0) / 700.0).clamp(0.0, 1.0),
-                                curve: kSpring,
-                              ),
-                            );
-
-                            Widget child;
-                            if (index == 0) {
-                              child = _buildHeroBanner(
-                                state,
-                                bannerCourse,
-                                isDark,
-                                activeCourse: activeCourse,
-                              );
-                            } else if (index == 1) {
-                              child = Padding(
-                                padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
-                                child: Text(
-                                  state.translate('courses_all'),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDark
-                                        ? AppColors.textDark
-                                        : AppColors.textLight,
-                                    letterSpacing: -0.8,
+                return Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 750),
+                    child: CustomScrollView(
+                      physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics()),
+                      slivers: [
+                        _buildSliverAppBar(state, isDark),
+                        SliverPadding(
+                          padding: EdgeInsets.only(
+                            top: 0,
+                            bottom: MediaQuery.of(context).padding.bottom +
+                                66 +
+                                16 +
+                                24,
+                          ),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final delay = index * 70;
+                                final itemAnim = CurvedAnimation(
+                                  parent: _listController,
+                                  curve: Interval(
+                                    (delay / 700.0).clamp(0.0, 1.0),
+                                    ((delay + 400.0) / 700.0).clamp(0.0, 1.0),
+                                    curve: kSpring,
                                   ),
-                                ),
-                              );
-                            } else {
-                              final course =
-                                  courses[index - 2] as Map<String, dynamic>;
-                              final isLocked = course['isLocked'] == true;
-                              final steps =
-                                  course['steps'] as List<dynamic>? ?? [];
-                              final stepsCount = steps.length;
-                              final completedCount = steps
-                                  .where((s) =>
-                                      s['userProgress']?['status'] == 'completed')
-                                  .length;
-                              final progress = stepsCount > 0
-                                  ? completedCount / stepsCount
-                                  : 0.0;
+                                );
 
-                              String statusLabel;
-                              if (isLocked) {
-                                statusLabel = '🔒';
-                              } else if (completedCount == stepsCount &&
-                                  stepsCount > 0) {
-                                statusLabel = '✓ Завершён';
-                              } else if (completedCount > 0) {
-                                statusLabel =
-                                    'Продолжить • $completedCount/$stepsCount';
-                              } else {
-                                statusLabel = stepsCount > 0
-                                    ? '$stepsCount уроков'
-                                    : 'Начать';
-                              }
+                                Widget child;
+                                if (index == 0) {
+                                  child = _buildHeroBanner(
+                                    state,
+                                    bannerCourse,
+                                    isDark,
+                                    activeCourse: activeCourse,
+                                  );
+                                } else if (index == 1) {
+                                  child = Padding(
+                                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                                    child: Text(
+                                      state.translate('courses_all'),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: isDark
+                                            ? AppColors.textDark
+                                            : AppColors.textLight,
+                                        letterSpacing: -0.8,
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  final course =
+                                      courses[index - 2] as Map<String, dynamic>;
+                                  final isLocked = course['isLocked'] == true;
+                                  final steps =
+                                      course['steps'] as List<dynamic>? ?? [];
+                                  final stepsCount = steps.length;
+                                  final completedCount = steps
+                                      .where((s) =>
+                                          s['userProgress']?['status'] == 'completed')
+                                      .length;
+                                  final progress = stepsCount > 0
+                                      ? completedCount / stepsCount
+                                      : 0.0;
 
-                              child = _buildCourseCard(
-                                context,
-                                course,
-                                statusLabel,
-                                progress.toDouble(),
-                                isDark,
-                                isLocked: isLocked,
-                                stepsCount: stepsCount,
-                                completedCount: completedCount,
-                              );
-                            }
+                                  String statusLabel;
+                                  if (isLocked) {
+                                    statusLabel = '🔒';
+                                  } else if (completedCount == stepsCount &&
+                                      stepsCount > 0) {
+                                    statusLabel = '✓ Завершён';
+                                  } else if (completedCount > 0) {
+                                    statusLabel =
+                                        'Продолжить • $completedCount/$stepsCount';
+                                  } else {
+                                    statusLabel = stepsCount > 0
+                                        ? '$stepsCount уроков'
+                                        : 'Начать';
+                                  }
 
-                            return AnimatedBuilder(
-                              animation: _listController,
-                              builder: (_, childWidget) => FadeTransition(
-                                opacity: Tween(begin: 0.0, end: 1.0)
-                                    .animate(itemAnim),
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0, 0.06),
-                                    end: Offset.zero,
-                                  ).animate(itemAnim),
-                                  child: childWidget,
-                                ),
-                              ),
-                              child: child,
-                            );
-                          },
-                          childCount: courses.length + 2,
+                                  child = _buildCourseCard(
+                                    context,
+                                    course,
+                                    statusLabel,
+                                    progress.toDouble(),
+                                    isDark,
+                                    isLocked: isLocked,
+                                    stepsCount: stepsCount,
+                                    completedCount: completedCount,
+                                  );
+                                }
+
+                                return AnimatedBuilder(
+                                  animation: _listController,
+                                  builder: (_, childWidget) => FadeTransition(
+                                    opacity: Tween(begin: 0.0, end: 1.0)
+                                        .animate(itemAnim),
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0, 0.06),
+                                        end: Offset.zero,
+                                      ).animate(itemAnim),
+                                      child: childWidget,
+                                    ),
+                                  ),
+                                  child: child,
+                                );
+                              },
+                              childCount: courses.length + 2,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 );
               },
             ),
@@ -241,78 +246,88 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildSkeletonList() {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Skeleton hero
-                  const SkeletonLoader(
-                      width: double.infinity, height: 200, borderRadius: 20),
-                  const SizedBox(height: 28),
-                  const SkeletonLoader(width: 140, height: 22, borderRadius: 8),
-                  const SizedBox(height: 16),
-                  ...List.generate(4, (_) => const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: SkeletonCourseCard(),
-                  )),
-                ],
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 750),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Skeleton hero
+                      const SkeletonLoader(
+                          width: double.infinity, height: 200, borderRadius: 20),
+                      const SizedBox(height: 28),
+                      const SkeletonLoader(width: 140, height: 22, borderRadius: 8),
+                      const SizedBox(height: 16),
+                      ...List.generate(4, (_) => const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: SkeletonCourseCard(),
+                      )),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildEmptyState(AppState state, bool isDark) {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics()),
-      slivers: [
-        _buildSliverAppBar(state, isDark),
-        SliverFillRemaining(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.school_outlined,
-                      size: 36, color: AppColors.accent),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 750),
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics()),
+          slivers: [
+            _buildSliverAppBar(state, isDark),
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.school_outlined,
+                          size: 36, color: AppColors.accent),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Курсы недоступны',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? AppColors.textDark : AppColors.textLight,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Потяните вниз чтобы обновить',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        color: AppColors.subtextDark,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'Курсы недоступны',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? AppColors.textDark : AppColors.textLight,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Потяните вниз чтобы обновить',
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: AppColors.subtextDark,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

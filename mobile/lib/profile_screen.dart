@@ -1128,7 +1128,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              body: ListView(
+              body: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 750),
+                  child: ListView(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.only(
                   left: 16,
@@ -1336,7 +1339,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-            );
+            ),
+          ),
+        );
           },
         );
       },
