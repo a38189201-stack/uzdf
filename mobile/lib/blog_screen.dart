@@ -62,27 +62,32 @@ class _BlogScreenState extends State<BlogScreen> {
                 future: _newsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: List.generate(4, (_) => Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: LiquidGlassCard(
-                          padding: EdgeInsets.zero,
-                          child: Column(children: [
-                            const SkeletonLoader(width: double.infinity, height: 160, borderRadius: 18),
-                            Padding(
-                              padding: const EdgeInsets.all(18),
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                SkeletonLoader(width: MediaQuery.of(context).size.width * 0.7, height: 18, borderRadius: 6),
-                                const SizedBox(height: 10),
-                                const SkeletonLoader(width: double.infinity, height: 12, borderRadius: 4),
-                                const SizedBox(height: 6),
-                                SkeletonLoader(width: MediaQuery.of(context).size.width * 0.5, height: 12, borderRadius: 4),
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 750),
+                        child: ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: List.generate(4, (_) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: LiquidGlassCard(
+                              padding: EdgeInsets.zero,
+                              child: Column(children: [
+                                const SkeletonLoader(width: double.infinity, height: 160, borderRadius: 18),
+                                Padding(
+                                  padding: const EdgeInsets.all(18),
+                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    SkeletonLoader(width: MediaQuery.of(context).size.width * 0.7, height: 18, borderRadius: 6),
+                                    const SizedBox(height: 10),
+                                    const SkeletonLoader(width: double.infinity, height: 12, borderRadius: 4),
+                                    const SizedBox(height: 6),
+                                    SkeletonLoader(width: MediaQuery.of(context).size.width * 0.5, height: 12, borderRadius: 4),
+                                  ]),
+                                ),
                               ]),
                             ),
-                          ]),
+                          )),
                         ),
-                      )),
+                      ),
                     );
                   }
                   if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
@@ -100,25 +105,30 @@ class _BlogScreenState extends State<BlogScreen> {
                   }
 
                   final newsList = snapshot.data!;
-                  return ListView.builder(
-                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                    padding: EdgeInsets.only(
-                      left: 16, right: 16, top: 16,
-                      bottom: MediaQuery.of(context).padding.bottom + 68 + 24 + 20,
-                    ),
-                    itemCount: newsList.length,
-                    itemBuilder: (context, index) {
-                      final item = newsList[index];
-                      final author = item['author'] ?? 'UZDF';
-                      return PressScaleWidget(
-                        scale: 0.98,
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.push(context, GlassRoute(page: NewsDetailScreen(news: item)));
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 750),
+                      child: ListView.builder(
+                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                        padding: EdgeInsets.only(
+                          left: 16, right: 16, top: 16,
+                          bottom: MediaQuery.of(context).padding.bottom + 68 + 24 + 20,
+                        ),
+                        itemCount: newsList.length,
+                        itemBuilder: (context, index) {
+                          final item = newsList[index];
+                          final author = item['author'] ?? 'UZDF';
+                          return PressScaleWidget(
+                            scale: 0.98,
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              Navigator.push(context, GlassRoute(page: NewsDetailScreen(news: item)));
+                            },
+                            child: _buildNewsCard(item['title'] ?? '', item['content'] ?? '', author, item['imageUrl'], isDark),
+                          );
                         },
-                        child: _buildNewsCard(item['title'] ?? '', item['content'] ?? '', author, item['imageUrl'], isDark),
-                      );
-                    },
+                      ),
+                    ),
                   );
                 },
               ),

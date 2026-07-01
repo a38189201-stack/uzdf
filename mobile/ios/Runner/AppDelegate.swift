@@ -29,7 +29,7 @@ import GoogleMaps
     // (works in both Scene-based and legacy window-based scenarios)
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
       guard let self = self else { return }
-      if let controller = self.window?.rootViewController as? FlutterViewController {
+      if let controller = self.getActiveWindow()?.rootViewController as? FlutterViewController {
         self.methodChannel = FlutterMethodChannel(
           name: "uzdf.security",
           binaryMessenger: controller.binaryMessenger

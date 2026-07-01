@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'glass_widgets.dart';
 import 'api_service.dart';
 import 'app_state.dart';
@@ -17,6 +18,7 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   final Set<Polygon> _polygons = {};
   bool _isLoading = true;
+  bool _isLocationPermissionGranted = false;
 
   bool _isWeatherPanelOpen = false;
   bool _isWeatherLoaded = false;
@@ -164,9 +166,28 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _checkLocationPermission();
     _loadZones();
     // Auto-load weather data on init (no XP reward, just data)
     _loadWeatherSilent();
+  }
+
+  Future<void> _checkLocationPermission() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+        if (mounted) {
+          setState(() {
+            _isLocationPermissionGranted = true;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking location permission: $e');
+    }
   }
 
   Future<void> _loadZones() async {
@@ -416,7 +437,7 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                       style: isDark ? _darkMapStyle : '[]',
                       polygons: _polygons,
-                      myLocationEnabled: true,
+                      myLocationEnabled: _isLocationPermissionGranted,
                       myLocationButtonEnabled: false,
                       zoomControlsEnabled: false,
                       onMapCreated: (controller) {

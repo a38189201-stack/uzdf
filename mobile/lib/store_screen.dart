@@ -59,11 +59,14 @@ class _StoreScreenState extends State<StoreScreen> {
             child: FutureBuilder<List<dynamic>>(
               future: _productsFuture,
               builder: (context, snapshot) {
+                final double screenWidth = MediaQuery.of(context).size.width;
+                final int crossAxisCount = screenWidth < 600 ? 2 : (screenWidth < 900 ? 3 : 4);
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return GridView.builder(
                     padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.7,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount, crossAxisSpacing: 16, mainAxisSpacing: 16, childAspectRatio: 0.7,
                     ),
                     itemCount: 6,
                     itemBuilder: (context, index) => const SkeletonLoader(width: double.infinity, height: double.infinity, borderRadius: 18),
@@ -91,8 +94,8 @@ class _StoreScreenState extends State<StoreScreen> {
                     top: 16,
                     bottom: MediaQuery.of(context).padding.bottom + 68 + 24 + 20,
                   ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                     childAspectRatio: 0.7,
