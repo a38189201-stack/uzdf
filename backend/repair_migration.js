@@ -1,14 +1,14 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
 async function main() {
   console.log("Checking for failed migrations in _prisma_migrations...");
-  if (!process.env.DATABASE_URL) {
-    console.log("No DATABASE_URL found, skipping migration repair.");
+  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+    console.log("No valid DATABASE_URL found, skipping migration repair.");
     return;
   }
 
+  const { PrismaClient } = require('@prisma/client');
+  let prisma;
   try {
+    prisma = new PrismaClient();
     // Check if _prisma_migrations table exists
     const tableCheck = await prisma.$queryRawUnsafe(`
       SELECT EXISTS (
@@ -32,7 +32,9 @@ async function main() {
   } catch (err) {
     console.error("Failed to repair migration:", err.message);
   } finally {
-    await prisma.$disconnect();
+    if (prisma) {
+      await prisma.$disconnect().catch(() => {});
+    }
   }
 }
 
