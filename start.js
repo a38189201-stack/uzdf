@@ -1,5 +1,9 @@
 const { execSync } = require('child_process');
 
+if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+  process.env.DATABASE_URL = "postgresql://postgres:admin@localhost:5432/drone_db?schema=public";
+}
+
 console.log('🚀 Starting UZDF Application...');
 
 // 1. Repair migrations safely

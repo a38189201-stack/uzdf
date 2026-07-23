@@ -1,4 +1,7 @@
 require('dotenv').config();
+if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
+  process.env.DATABASE_URL = "postgresql://postgres:admin@localhost:5432/drone_db?schema=public";
+}
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -4194,8 +4197,8 @@ function sendTelegramMessage(token, chatId, text) {
 let botProcess = null;
 
 function startTelegramBot() {
-  if (process.env.DISABLE_BOT_SPAWN === 'true') {
-    console.log('🤖 [Bot Manager] Автозапуск Telegram Bot отключен (DISABLE_BOT_SPAWN=true).');
+  if (process.env.DISABLE_BOT_SPAWN === 'true' || process.env.RAILWAY_ENVIRONMENT || process.env.PORT) {
+    console.log('🤖 [Bot Manager] Автозапуск Telegram Bot отключен в облачной среде.');
     return;
   }
   const botPath = path.join(__dirname, '../telegram_bot/main.py');
