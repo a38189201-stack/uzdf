@@ -37,3 +37,15 @@ pinggy.log
 # Root temp files and clones
 .env
 open-design/
+
+# Root node_modules
+node_modules/
+
+# Build artifacts (APKs)
+*.apk
+reliase/
+
+# IDE
+.vscode/
+.idea/
+.claude/
