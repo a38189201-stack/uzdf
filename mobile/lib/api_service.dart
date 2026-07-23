@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // ЗАМЕНИТЕ ЭТОТ URL НА ВАШ АДРЕС ПОСЛЕ РАЗВЕРТЫВАНИЯ БЭКЕНДА В ОБЛАКЕ (например, Render.com)
-  static const String productionUrl = 'https://uzdf.up.railway.app';
+  static const String productionUrl = 'https://uzdf-1.up.railway.app';
 
 
   static String? _resolvedBaseUrl;
