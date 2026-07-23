@@ -4,7 +4,7 @@
   "description": "Drone pilots app backend",
   "main": "server.js",
   "scripts": {
-    "start": "npx prisma migrate deploy && node server.js",
+    "start": "node server.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
